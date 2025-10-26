@@ -2,56 +2,115 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useArtifactStore } from "@/hooks/artifact/use-artifact";
-import { useState } from "react";
-
-type SearchResults = Record<
-  string,
-  {
-    query: string;
-    results: { url: string; title: string }[];
-  }
->;
+import { useEffect } from "react";
+import { useChainOfThoughtStore } from "../chain-of-thought/use-chain-of-thought";
+import {
+  ChainOfThoughtRun,
+  StepUpdateType,
+} from "@/app/types/chain-of-thought";
+import { ArtifactStart } from "@/app/types/artifact";
 
 function useAiChat() {
-  const { addArtifact, setCurrent, appendArtifactContent } = useArtifactStore();
-  const [searchResults, setSearchResults] = useState<
-    SearchResults | undefined
-  >();
+  const {
+    initArtifact,
+    currentArtifact,
+    artifacts,
+    addArtifactDelta,
+    setCurrentArtifact,
+  } = useArtifactStore();
+
+  const { runs, addRun, addStep, updateStep, clearRuns, updateRun } =
+    useChainOfThoughtStore();
+  useEffect(() => {
+    if (currentArtifact && Object.keys(artifacts).includes(currentArtifact)) {
+      console.log("artifacts", artifacts[currentArtifact]);
+    }
+  }, [artifacts, currentArtifact]);
   const aiSdkUseChat = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
     }),
-    onData: ({ data, type }) => {
+    onData: ({ data, type, id: artifactRunId }) => {
       switch (type) {
-        case "data-search-call":
-          const { id, query } = data as { id: string; query: string };
-          setSearchResults((prev) => ({
-            ...prev,
-            [id]: {
-              query: query,
-              results: [],
-            },
-          }));
+        case "data-chain-of-thought-run-start":
+          const {
+            id,
+            type: runType,
+            startDatetime: runStart,
+            status,
+            steps,
+          } = data as unknown as ChainOfThoughtRun;
+          addRun({
+            id,
+            status,
+            type: runType,
+            startDatetime: runStart,
+            steps,
+          });
           break;
-        case "data-search-result":
-          const { id: resultId, results } = data as {
-            id: string;
-            results: { url: string; title: string }[];
+        case "data-chain-of-thought-step-update":
+          const {
+            runId,
+            stepId,
+            type,
+            status: stepStatus,
+            data: stepData,
+            startDatetime,
+            endDatetime,
+          } = data as unknown as StepUpdateType;
+          if (!Object.keys(runs[runId]?.steps || {}).includes(stepId)) {
+            addStep(runId, {
+              runId,
+              stepId,
+              type,
+              status: stepStatus,
+              data: stepData,
+              startDatetime,
+              endDatetime,
+            });
+          } else {
+            updateStep(runId, stepId, {
+              runId,
+              stepId,
+              type,
+              status: stepStatus,
+              data: stepData,
+              startDatetime,
+              endDatetime,
+            });
+          }
+          break;
+        case "data-chain-of-thought-run-end":
+          const { id: currentRunId, status: runStatus } =
+            data as unknown as ChainOfThoughtRun;
+
+          updateRun(currentRunId, {
+            status: runStatus,
+          });
+
+          break;
+        case "data-artifact-start":
+          const { title, description, plan } = data as unknown as ArtifactStart;
+          setCurrentArtifact(artifactRunId as string);
+          initArtifact(artifactRunId as string, title, description, plan);
+          break;
+        case "data-artifact-delta":
+          const { delta } = data as unknown as {
+            delta: string;
           };
-          setSearchResults((prev) => ({
-            ...prev,
-            [resultId]: {
-              query: prev?.[resultId]?.query || "",
-              results: [...(prev?.[resultId]?.results || []), ...results],
-            },
-          }));
+          addArtifactDelta(artifactRunId as string, delta);
           break;
         default:
           break;
       }
     },
   });
-  return { ...aiSdkUseChat, searchResults };
+  useEffect(() => {
+    return () => {
+      clearRuns();
+    };
+  }, [clearRuns]);
+  return { ...aiSdkUseChat, runs, currentArtifact, artifacts };
 }
 
 export { useAiChat };

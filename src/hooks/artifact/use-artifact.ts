@@ -1,41 +1,54 @@
 import { create } from "zustand";
 
-type ArtifactType = "document" | "code" | "notebok";
-
-type Artifact = {
-  type: ArtifactType;
-  title: string;
+interface ArtifactBody {
   content: string;
-};
+  title: string;
+  description: string;
+  plan: string;
+}
+interface ArtifactStore {
+  artifacts: Record<string, ArtifactBody>;
+  initArtifact: (
+    id: string,
+    title: string,
+    description: string,
+    plan: string
+  ) => void;
+  addArtifactDelta: (id: string, delta: string) => void;
+  currentArtifact: string | undefined;
+  setCurrentArtifact: (id: string) => void;
+  clearCurrentArtifact: () => void;
+}
 
-type ArtifactWithId = Artifact & { id: string };
-
-type ArtifactStore = {
-  current: string | null;
-  artifacts: Record<string, Artifact>;
-  addArtifact: (artifact: ArtifactWithId) => void;
-  appendArtifactContent: (id: string, contentPart: string) => void;
-  setCurrent: (id: string | null) => void;
-};
-
-const useArtifactStore = create<ArtifactStore>((set) => ({
-  current: null,
+const useArtifactStore = create<ArtifactStore>((set, get) => ({
+  currentArtifact: undefined,
   artifacts: {},
-  addArtifact: (artifact) =>
-    set((state) => ({
-      artifacts: { ...state.artifacts, [artifact.id]: artifact },
-    })),
-  appendArtifactContent: (id, contentPart) =>
+  initArtifact: (id, title, description, plan) => {
     set((state) => ({
       artifacts: {
         ...state.artifacts,
-        [id]: {
-          ...state.artifacts[id],
-          content: state.artifacts[id].content + contentPart,
-        },
+        [id]: { content: "", title, description, plan },
       },
-    })),
-  setCurrent: (id) => set({ current: id }),
+    }));
+  },
+  addArtifactDelta: (id, delta) => {
+    if (!get().artifacts[id]) {
+      throw new Error(`Artifact ${id} not found`);
+    }
+    const artifact = get().artifacts[id];
+    set((state) => ({
+      artifacts: {
+        ...state.artifacts,
+        [id]: { ...artifact, content: artifact.content + delta },
+      },
+    }));
+  },
+  setCurrentArtifact: (id) => {
+    set({ currentArtifact: id });
+  },
+  clearCurrentArtifact: () => {
+    set({ currentArtifact: undefined });
+  },
 }));
 
 export { useArtifactStore };

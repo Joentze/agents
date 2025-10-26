@@ -20,7 +20,7 @@ import {
   PromptInputFooter,
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useAiChat as useChat } from "@/hooks/chat/use-ai-chat";
 
 import {
@@ -30,18 +30,19 @@ import {
 } from "@/components/ai-elements/conversation";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import { Response } from "@/components/ai-elements/response";
+
+import { ModeToggle } from "@/components/ui/theme-button";
+import ChainOfThoughtDisplay from "@/components/ai-elements/chain-of-thought-display";
 import {
-  ChainOfThought,
-  ChainOfThoughtContent,
-  ChainOfThoughtHeader,
-  ChainOfThoughtSearchResult,
-  ChainOfThoughtSearchResults,
-  ChainOfThoughtStep,
-} from "@/components/ai-elements/chain-of-thought";
-import { Globe, SearchIcon } from "lucide-react";
-import Image from "next/image";
+  Source,
+  Sources,
+  SourcesContent,
+  SourcesTrigger,
+} from "@/components/ai-elements/sources";
+import { ArtifactPlanDisplay } from "@/components/ai-elements/artifact/artifact-plan-display";
+import { ArtifactInput } from "./types/artifact";
+import { ArtifactRenderer } from "@/components/ai-elements/artifact/artifact-renderer";
 import { cn } from "@/lib/utils";
-import { Shimmer } from "@/components/ai-elements/shimmer";
 
 const models = [
   { id: "openai/gpt-4.1-nano", name: "GPT-4.1 Nano", provider: "openai" },
@@ -57,7 +58,8 @@ const InputDemo = () => {
   const [model, setModel] = useState<string>(models[0].id);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { messages, status, sendMessage, searchResults } = useChat();
+  const { messages, status, sendMessage, currentArtifact, artifacts } =
+    useChat();
 
   const handleSubmit = (message: PromptInputMessage) => {
     const hasText = Boolean(message.text);
@@ -82,137 +84,140 @@ const InputDemo = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col w-full p-4">
-      <Conversation className="flex-1 overflow-auto ">
-        <ConversationContent>
-          {messages.map((message) => (
-            <Message from={message.role} key={message.id}>
-              <MessageContent>
-                {message.parts.map((part, i) => {
-                  switch (part.type) {
-                    case "text":
-                      return (
-                        <Response key={`${message.id}-${i}`}>
-                          {part.text}
-                        </Response>
-                      );
-                    case "tool-agenticSearch":
-                      return (
-                        <ChainOfThought defaultOpen={true}>
-                          <ChainOfThoughtHeader
-                            className="flex flex-row gap-2"
-                            icon={Globe}
-                          >
-                            {part.state === "output-available" ? (
-                              "Searched the Web"
-                            ) : (
-                              <Shimmer>Searching the Web</Shimmer>
-                            )}
-                          </ChainOfThoughtHeader>
+    <>
+      <div className="flex flex-row h-screen w-full">
+        <div
+          className={cn(
+            "h-screen flex flex-col p-4 mx-auto",
+            currentArtifact ? "w-full" : "w-full md:w-2/3"
+          )}
+        >
+          <ModeToggle />
+          <Conversation className="flex-1 overflow-auto">
+            <ConversationContent>
+              {messages.map((message, index) => (
+                <Message from={message.role} key={message.id}>
+                  <MessageContent variant="flat">
+                    {message.parts.map((part, i) => {
+                      switch (part.type) {
+                        case "text":
+                          return (
+                            <Response key={`${message.id}-${i}`}>
+                              {part.text}
+                            </Response>
+                          );
+                        case "tool-agenticSearch":
+                        case "tool-agenticCode":
+                        case "tool-agenticArtifact":
+                          return (
+                            <>
+                              <ChainOfThoughtDisplay runId={part.toolCallId} />
+                              {part.type === "tool-agenticArtifact" &&
+                                part.output && (
+                                  <ArtifactPlanDisplay
+                                    id={part.toolCallId}
+                                    artifact={part.input as ArtifactInput}
+                                    isLoading={part.state === "input-streaming"}
+                                  />
+                                )}
+                            </>
+                          );
+                        default:
+                          return null;
+                      }
+                    })}
+                    {message.role === "assistant" &&
+                      index === messages.length - 1 &&
+                      status === "ready" &&
+                      message.parts.some(
+                        (part) => part.type === "source-url"
+                      ) && (
+                        <Sources className="mt-2">
+                          <SourcesTrigger
+                            className="text-blue-400 hover:text-blue-700"
+                            count={
+                              message.parts.filter(
+                                (part) => part.type === "source-url"
+                              ).length
+                            }
+                          />
+                          {message.parts.map((part, i) => {
+                            switch (part.type) {
+                              case "source-url":
+                                return (
+                                  <SourcesContent key={`${message.id}-${i}`}>
+                                    <Source
+                                      key={`${message.id}-${i}`}
+                                      href={part.url}
+                                      title={part.url}
+                                    />
+                                  </SourcesContent>
+                                );
+                            }
+                          })}
+                        </Sources>
+                      )}
+                  </MessageContent>
+                </Message>
+              ))}
+            </ConversationContent>
+            <ConversationScrollButton />
+          </Conversation>
 
-                          {searchResults && (
-                            <ChainOfThoughtContent>
-                              {Object.entries(searchResults).map(
-                                ([id, topic]) => (
-                                  <ChainOfThoughtStep
-                                    key={id}
-                                    icon={SearchIcon}
-                                    label={`Searching for ${topic.query}`}
-                                    status={
-                                      topic.results.length > 0
-                                        ? "complete"
-                                        : "pending"
-                                    }
-                                  >
-                                    <ChainOfThoughtSearchResults>
-                                      {topic.results.map(({ url, title }) => (
-                                        <ChainOfThoughtSearchResult
-                                          className="border border-border cursor-pointer rounded-md p-1 ring-1 ring-border/50 bg-muted/50 truncate"
-                                          key={url}
-                                          onClick={() => {
-                                            window.open(url, "_blank");
-                                          }}
-                                        >
-                                          <Image
-                                            alt=""
-                                            className="size-4"
-                                            height={16}
-                                            src={`https://img.logo.dev/${
-                                              new URL(url).hostname
-                                            }?token=${
-                                              process.env
-                                                .NEXT_PUBLIC_LOGO_DEV_TOKEN
-                                            }`}
-                                            width={16}
-                                          />
-                                          {new URL(url).hostname}
-                                        </ChainOfThoughtSearchResult>
-                                      ))}
-                                    </ChainOfThoughtSearchResults>
-                                  </ChainOfThoughtStep>
-                                )
-                              )}
-                            </ChainOfThoughtContent>
-                          )}
-                        </ChainOfThought>
-                      );
-                    default:
-                      return null;
-                  }
-                })}
-              </MessageContent>
-            </Message>
-          ))}
-        </ConversationContent>
-        <ConversationScrollButton />
-      </Conversation>
+          <PromptInput onSubmit={handleSubmit} globalDrop multiple>
+            <PromptInputBody className="pt-2">
+              <PromptInputAttachments>
+                {(attachment) => <PromptInputAttachment data={attachment} />}
+              </PromptInputAttachments>
+              <PromptInputTextarea
+                onChange={(e) => setText(e.target.value)}
+                ref={textareaRef}
+                value={text}
+              />
+            </PromptInputBody>
+            <PromptInputFooter>
+              <PromptInputTools>
+                <PromptInputActionMenu>
+                  <PromptInputActionMenuTrigger />
+                  <PromptInputActionMenuContent>
+                    <PromptInputActionAddAttachments />
+                  </PromptInputActionMenuContent>
+                </PromptInputActionMenu>
 
-      <PromptInput onSubmit={handleSubmit} globalDrop multiple>
-        <PromptInputBody className="pt-2">
-          <PromptInputAttachments>
-            {(attachment) => <PromptInputAttachment data={attachment} />}
-          </PromptInputAttachments>
-          <PromptInputTextarea
-            onChange={(e) => setText(e.target.value)}
-            ref={textareaRef}
-            value={text}
-          />
-        </PromptInputBody>
-        <PromptInputFooter>
-          <PromptInputTools>
-            <PromptInputActionMenu>
-              <PromptInputActionMenuTrigger />
-              <PromptInputActionMenuContent>
-                <PromptInputActionAddAttachments />
-              </PromptInputActionMenuContent>
-            </PromptInputActionMenu>
-
-            <PromptInputModelSelect
-              onValueChange={(value) => {
-                setModel(value);
-              }}
-              value={model}
-            >
-              <PromptInputModelSelectTrigger>
-                <PromptInputModelSelectValue />
-              </PromptInputModelSelectTrigger>
-              <PromptInputModelSelectContent>
-                {models.map((model) => (
-                  <PromptInputModelSelectItem key={model.id} value={model.id}>
-                    {model.name}
-                  </PromptInputModelSelectItem>
-                ))}
-              </PromptInputModelSelectContent>
-            </PromptInputModelSelect>
-          </PromptInputTools>
-          <PromptInputSubmit
-            disabled={!text && !status}
-            status={status}
-            className="border border-muted-foreground ring-2 ring-border/50"
-          />
-        </PromptInputFooter>
-      </PromptInput>
-    </div>
+                <PromptInputModelSelect
+                  onValueChange={(value) => {
+                    setModel(value);
+                  }}
+                  value={model}
+                >
+                  <PromptInputModelSelectTrigger>
+                    <PromptInputModelSelectValue />
+                  </PromptInputModelSelectTrigger>
+                  <PromptInputModelSelectContent>
+                    {models.map((model) => (
+                      <PromptInputModelSelectItem
+                        key={model.id}
+                        value={model.id}
+                      >
+                        {model.name}
+                      </PromptInputModelSelectItem>
+                    ))}
+                  </PromptInputModelSelectContent>
+                </PromptInputModelSelect>
+              </PromptInputTools>
+              <PromptInputSubmit
+                disabled={!text && !status}
+                status={status}
+                className="border border-muted-foreground ring-2 ring-border/50"
+              />
+            </PromptInputFooter>
+          </PromptInput>
+        </div>
+        {currentArtifact && artifacts[currentArtifact] && (
+          <ArtifactRenderer artifactId={currentArtifact} />
+        )}
+      </div>
+    </>
   );
 };
 

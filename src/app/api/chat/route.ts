@@ -10,6 +10,7 @@ import {
   searchTool as search,
   search2Tool as agenticSearch,
 } from "@/app/api/chat/tools/search";
+import { artifactTool } from "./tools/artifact";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
           "You are a helpful assistant that can use the search tool to find information. Use agentic search once",
         tools: {
           agenticSearch: agenticSearch({ writer }),
+          agenticArtifact: artifactTool({ writer }),
         },
         providerOptions: {
           openai: {
