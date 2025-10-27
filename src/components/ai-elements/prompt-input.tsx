@@ -162,21 +162,58 @@ export function PromptInputProvider({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const openRef = useRef<() => void>(() => {});
 
-  const add = useCallback((files: File[] | FileList) => {
+  const add = useCallback(async (files: File[] | FileList) => {
     const incoming = Array.from(files);
     if (incoming.length === 0) return;
 
-    setAttachements((prev) =>
-      prev.concat(
-        incoming.map((file) => ({
-          id: nanoid(),
-          type: "file" as const,
-          url: URL.createObjectURL(file),
-          mediaType: file.type,
-          filename: file.name,
-        }))
-      )
+    // Upload files to server and get blob URLs
+    const uploadedFiles = await Promise.all(
+      incoming.map(async (file) => {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+          const response = await fetch("/api/file", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            console.error("File upload failed:", error);
+            // Fallback to local blob URL
+            return {
+              id: nanoid(),
+              type: "file" as const,
+              url: URL.createObjectURL(file),
+              mediaType: file.type,
+              filename: file.name,
+            };
+          }
+
+          const data = await response.json();
+          return {
+            id: nanoid(),
+            type: "file" as const,
+            url: data.url, // Use the blob URL from Vercel Blob
+            mediaType: file.type,
+            filename: file.name,
+          };
+        } catch (error) {
+          console.error("File upload error:", error);
+          // Fallback to local blob URL
+          return {
+            id: nanoid(),
+            type: "file" as const,
+            url: URL.createObjectURL(file),
+            mediaType: file.type,
+            filename: file.name,
+          };
+        }
+      })
     );
+
+    setAttachements((prev) => prev.concat(uploadedFiles));
   }, []);
 
   const remove = useCallback((id: string) => {
@@ -293,7 +330,7 @@ export function PromptInputAttachment({
           width={56}
         />
       ) : (
-        <div className="flex size-full max-w-full cursor-pointer items-center justify-start gap-2 overflow-hidden px-2 text-muted-foreground">
+        <div className="flex size-full max-w-56 cursor-pointer items-center justify-start gap-2 overflow-hidden px-2 text-muted-foreground">
           <PaperclipIcon className="size-4 shrink-0" />
           <Tooltip delayDuration={400}>
             <TooltipTrigger className="min-w-0 flex-1">
@@ -505,7 +542,7 @@ export const PromptInput = ({
   );
 
   const addLocal = useCallback(
-    (fileList: File[] | FileList) => {
+    async (fileList: File[] | FileList) => {
       const incoming = Array.from(fileList);
       const accepted = incoming.filter((f) => matchesAccept(f));
       if (incoming.length && accepted.length === 0) {
@@ -526,33 +563,70 @@ export const PromptInput = ({
         return;
       }
 
-      setItems((prev) => {
-        const capacity =
-          typeof maxFiles === "number"
-            ? Math.max(0, maxFiles - prev.length)
-            : undefined;
-        const capped =
-          typeof capacity === "number" ? sized.slice(0, capacity) : sized;
-        if (typeof capacity === "number" && sized.length > capacity) {
-          onError?.({
-            code: "max_files",
-            message: "Too many files. Some were not added.",
-          });
-        }
-        const next: (FileUIPart & { id: string })[] = [];
-        for (const file of capped) {
-          next.push({
-            id: nanoid(),
-            type: "file",
-            url: URL.createObjectURL(file),
-            mediaType: file.type,
-            filename: file.name,
-          });
-        }
-        return prev.concat(next);
-      });
+      // Determine how many files to upload
+      const capacity =
+        typeof maxFiles === "number"
+          ? Math.max(0, maxFiles - items.length)
+          : undefined;
+      const capped =
+        typeof capacity === "number" ? sized.slice(0, capacity) : sized;
+      if (typeof capacity === "number" && sized.length > capacity) {
+        onError?.({
+          code: "max_files",
+          message: "Too many files. Some were not added.",
+        });
+      }
+
+      // Upload files to server and get blob URLs
+      const uploadedFiles = await Promise.all(
+        capped.map(async (file) => {
+          const formData = new FormData();
+          formData.append("file", file);
+
+          try {
+            const response = await fetch("/api/file", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!response.ok) {
+              const error = await response.json();
+              console.error("File upload failed:", error);
+              // Fallback to local blob URL
+              return {
+                id: nanoid(),
+                type: "file" as const,
+                url: URL.createObjectURL(file),
+                mediaType: file.type,
+                filename: file.name,
+              };
+            }
+
+            const data = await response.json();
+            return {
+              id: nanoid(),
+              type: "file" as const,
+              url: data.url, // Use the blob URL from Vercel Blob
+              mediaType: file.type,
+              filename: file.name,
+            };
+          } catch (error) {
+            console.error("File upload error:", error);
+            // Fallback to local blob URL
+            return {
+              id: nanoid(),
+              type: "file" as const,
+              url: URL.createObjectURL(file),
+              mediaType: file.type,
+              filename: file.name,
+            };
+          }
+        })
+      );
+
+      setItems((prev) => prev.concat(uploadedFiles));
     },
-    [matchesAccept, maxFiles, maxFileSize, onError]
+    [matchesAccept, maxFiles, maxFileSize, onError, items.length]
   );
 
   const add = usingProvider

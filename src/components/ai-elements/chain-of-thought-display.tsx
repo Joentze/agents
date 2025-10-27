@@ -2,6 +2,7 @@ import {
   ChainOfThoughtRun,
   ChainOfThoughtRunType,
   ChainOfThoughtStepType,
+  CodeStep,
   ComponentStep,
   DateStep,
   ImageStep,
@@ -21,6 +22,7 @@ import {
 import {
   Box,
   Calendar,
+  ChartAreaIcon,
   Code,
   Component,
   DotIcon,
@@ -30,6 +32,7 @@ import {
   LucideIcon,
   Pencil,
   Search,
+  TerminalSquare,
 } from "lucide-react";
 import { Shimmer } from "./shimmer";
 import Image from "next/image";
@@ -40,6 +43,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useChainOfThoughtStore } from "@/hooks/chain-of-thought/use-chain-of-thought";
+import { CodeBlock } from "./code-block";
+import { memo } from "react";
 
 interface ChainOfThoughtDisplayProps {
   // tool call id
@@ -73,7 +78,7 @@ const chainOfThoughtDisplaySteps: ChainOfThoughtDisplaySteps = {
     icon: ImageIcon,
   },
   code: {
-    icon: Code,
+    icon: TerminalSquare,
   },
   date: {
     icon: Calendar,
@@ -84,6 +89,9 @@ const chainOfThoughtDisplaySteps: ChainOfThoughtDisplaySteps = {
   component: {
     icon: Component,
   },
+  "data-analysis": {
+    icon: ChartAreaIcon,
+  },
 };
 const chainOfThoughtDisplayHeaders: ChainOfThoughtDisplayHeaders = {
   "agentic-search": {
@@ -92,7 +100,7 @@ const chainOfThoughtDisplayHeaders: ChainOfThoughtDisplayHeaders = {
     afterLabel: "Searched the Web",
   },
   "agentic-code": {
-    icon: Code,
+    icon: TerminalSquare,
     beforeLabel: "Coding",
     afterLabel: "Coded",
   },
@@ -100,6 +108,11 @@ const chainOfThoughtDisplayHeaders: ChainOfThoughtDisplayHeaders = {
     icon: Box,
     beforeLabel: "Generating Artifact",
     afterLabel: "Generated Artifact",
+  },
+  "agentic-data-analysis": {
+    icon: ChartAreaIcon,
+    beforeLabel: "Analyzing Data",
+    afterLabel: "Analyzed Data",
   },
 };
 
@@ -150,98 +163,117 @@ function ChainOfThoughtDisplay({ runId }: ChainOfThoughtDisplayProps) {
     return null;
   }
   return (
-    <>
-      <ChainOfThought
-        className="-mb-3"
-        key={runId}
-        defaultOpen={run.status === "completed" ? false : true}
-      >
-        <ChainOfThoughtHeader
-          icon={chainOfThoughtDisplayHeaders[run.type].icon}
-        >
-          {run.status === "completed" ? (
-            chainOfThoughtDisplayHeaders[run.type].afterLabel
-          ) : (
-            <Shimmer>
-              {chainOfThoughtDisplayHeaders[run.type].beforeLabel}
-            </Shimmer>
-          )}
-        </ChainOfThoughtHeader>
-        <ChainOfThoughtContent className="pb-4">
-          {Object.entries(run.steps).map(([stepId, step]) => {
-            return (
-              <>
-                {step.type === "search" && (
-                  <SearchStepDisplay
-                    key={stepId}
-                    step={step.data as SearchStep}
+    <ChainOfThought
+      className="-mb-3"
+      key={runId}
+      defaultOpen={run.status === "completed" ? false : true}
+    >
+      <ChainOfThoughtHeader icon={chainOfThoughtDisplayHeaders[run.type].icon}>
+        {run.status === "completed" ? (
+          chainOfThoughtDisplayHeaders[run.type].afterLabel
+        ) : (
+          <Shimmer>
+            {chainOfThoughtDisplayHeaders[run.type].beforeLabel}
+          </Shimmer>
+        )}
+      </ChainOfThoughtHeader>
+      <ChainOfThoughtContent className="pb-4">
+        {Object.entries(run.steps).map(([stepId, step]) => {
+          return (
+            <>
+              {step.type === "search" && (
+                <SearchStepDisplay
+                  key={stepId}
+                  step={step.data as SearchStep}
+                />
+              )}
+              {step.type === "text" && (
+                <>
+                  {step.status === "completed" && (
+                    <ChainOfThoughtStep
+                      icon={chainOfThoughtDisplaySteps.text.icon}
+                      label={`${(step.data as TextStep).text.slice(0, 500)}${
+                        (step.data as TextStep).text.length > 500 ? "..." : ""
+                      }`}
+                    ></ChainOfThoughtStep>
+                  )}
+                  {step.status === "pending" && (
+                    <ChainOfThoughtStep
+                      icon={chainOfThoughtDisplaySteps.text.icon}
+                      label={
+                        <Shimmer>
+                          {step.data
+                            ? `${(step.data as TextStep).text.slice(0, 500)}...`
+                            : "Summarising"}
+                        </Shimmer>
+                      }
+                    />
+                  )}
+                </>
+              )}
+              {step.type === "writing" && (
+                <ChainOfThoughtStep
+                  icon={chainOfThoughtDisplaySteps.writing.icon}
+                  label={`${(step.data as WritingStep).content}`}
+                ></ChainOfThoughtStep>
+              )}
+              {step.type === "component" && (
+                <ChainOfThoughtStep
+                  icon={chainOfThoughtDisplaySteps.component.icon}
+                  label={
+                    "Created " +
+                    `${(step.data as ComponentStep).component}`
+                      .split("-")
+                      .join(" ")
+                  }
+                ></ChainOfThoughtStep>
+              )}
+              {step.type === "date" && (
+                <ChainOfThoughtStep
+                  icon={chainOfThoughtDisplaySteps.date.icon}
+                  label={`${(step.data as DateStep).date}`}
+                ></ChainOfThoughtStep>
+              )}
+              {step.type === "code" && (
+                <ChainOfThoughtStep
+                  icon={chainOfThoughtDisplaySteps.code.icon}
+                  label={`${(step.data as CodeStep).task}`}
+                >
+                  <CodeBlock
+                    code={(step.data as CodeStep).code}
+                    language="python"
                   />
-                )}
-                {step.type === "text" && (
-                  <>
-                    {step.status === "completed" && (
-                      <ChainOfThoughtStep
-                        icon={chainOfThoughtDisplaySteps.text.icon}
-                        label={`${(step.data as TextStep).text.slice(
-                          0,
-                          500
-                        )}...`}
-                      ></ChainOfThoughtStep>
-                    )}
-                    {step.status === "pending" && (
-                      <ChainOfThoughtStep
-                        icon={chainOfThoughtDisplaySteps.text.icon}
-                        label={<Shimmer>Summarising</Shimmer>}
-                      />
-                    )}
-                  </>
-                )}
-                {step.type === "writing" && (
-                  <ChainOfThoughtStep
-                    icon={chainOfThoughtDisplaySteps.writing.icon}
-                    label={`${(step.data as WritingStep).content}`}
-                  ></ChainOfThoughtStep>
-                )}
-                {step.type === "component" && (
-                  <ChainOfThoughtStep
-                    icon={chainOfThoughtDisplaySteps.component.icon}
-                    label={
-                      "Created " +
-                      `${(step.data as ComponentStep).component}`
-                        .split("-")
-                        .join(" ")
-                    }
-                  ></ChainOfThoughtStep>
-                )}
-                {step.type === "date" && (
-                  <ChainOfThoughtStep
-                    icon={chainOfThoughtDisplaySteps.date.icon}
-                    label={`${(step.data as DateStep).date}`}
-                  ></ChainOfThoughtStep>
-                )}
-                {step.type === "image" && (
-                  <ChainOfThoughtStep
-                    icon={chainOfThoughtDisplaySteps.image.icon}
-                    label={`Image`}
-                  >
-                    <ChainOfThoughtImage>
-                      <Image
-                        alt=""
-                        className="size-full object-cover"
-                        height={200}
-                        src={(step.data as ImageStep).image}
-                        width={200}
-                      />
-                    </ChainOfThoughtImage>
-                  </ChainOfThoughtStep>
-                )}
-              </>
-            );
-          })}
-        </ChainOfThoughtContent>
-      </ChainOfThought>
-    </>
+                </ChainOfThoughtStep>
+              )}
+              {step.type === "image" && (
+                <ChainOfThoughtStep
+                  icon={chainOfThoughtDisplaySteps.image.icon}
+                  label={`Image`}
+                >
+                  <ChainOfThoughtImage>
+                    <Image
+                      alt=""
+                      className="size-full object-cover"
+                      height={200}
+                      src={(step.data as ImageStep).image}
+                      width={200}
+                    />
+                  </ChainOfThoughtImage>
+                </ChainOfThoughtStep>
+              )}
+            </>
+          );
+        })}
+      </ChainOfThoughtContent>
+    </ChainOfThought>
   );
 }
 
-export default ChainOfThoughtDisplay;
+export default memo(ChainOfThoughtDisplay, (prevProps, nextProps) => {
+  // Get runs from store to compare
+  const prevRun = useChainOfThoughtStore.getState().runs[prevProps.runId];
+  const nextRun = useChainOfThoughtStore.getState().runs[nextProps.runId];
+
+  // Return true if props are equal (don't re-render), false if different (re-render)
+  return prevRun === nextRun;
+});

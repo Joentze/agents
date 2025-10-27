@@ -1,4 +1,12 @@
-type ChainOfThoughtStepType = "search" | "text" | "image" | "code" | "date" | "writing" | "component";
+type ChainOfThoughtStepType =
+  | "search"
+  | "text"
+  | "image"
+  | "code"
+  | "date"
+  | "writing"
+  | "component"
+  | "data-analysis";
 
 type SearchStep = {
   query: string;
@@ -19,11 +27,23 @@ type WritingStep = {
   content: string;
 };
 
+type CodeStep = {
+  task: string;
+  code: string;
+  output: string | undefined;
+};
 type ComponentStep = {
   component: "flash-card" | undefined;
 };
 
-type StepData = SearchStep | TextStep | ImageStep | DateStep | WritingStep | ComponentStep;
+type StepData =
+  | SearchStep
+  | TextStep
+  | ImageStep
+  | DateStep
+  | WritingStep
+  | ComponentStep
+  | CodeStep;
 
 type ChainOfThoughtStep = {
   id: string;
@@ -37,6 +57,7 @@ type ChainOfThoughtStep = {
 type ChainOfThoughtRunType =
   | "agentic-search"
   | "agentic-code"
+  | "agentic-data-analysis"
   | "agentic-artifact";
 
 type RunStepStatus = "pending" | "completed" | "error";
@@ -67,6 +88,7 @@ export type {
   ChainOfThoughtStepType,
   SearchStep,
   TextStep,
+  CodeStep,
   ImageStep,
   DateStep,
   WritingStep,

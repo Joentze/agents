@@ -3,13 +3,7 @@ import {
   ComponentStep,
   StepUpdateType,
 } from "@/app/types/chain-of-thought";
-import {
-  smoothStream,
-  stepCountIs,
-  streamText,
-  tool,
-  UIMessageStreamWriter,
-} from "ai";
+import { stepCountIs, streamText, tool, UIMessageStreamWriter } from "ai";
 import { randomUUID } from "crypto";
 import z from "zod";
 

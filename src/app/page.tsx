@@ -69,10 +69,27 @@ const InputDemo = () => {
       return;
     }
 
+    const tabularFiles = message.files?.filter(
+      (file) =>
+        file.mediaType === "text/csv" ||
+        file.mediaType === "application/vnd.ms-excel" ||
+        file.mediaType ===
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    const nonTabularFiles = message.files?.filter(
+      (file) =>
+        file.mediaType !== "text/csv" &&
+        file.mediaType !== "application/vnd.ms-excel" &&
+        file.mediaType !==
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
     sendMessage(
       {
         text: message.text || "Sent with attachments",
-        files: message.files,
+        files: nonTabularFiles,
+        metadata: { tabularFiles },
       },
       {
         body: {
@@ -108,6 +125,7 @@ const InputDemo = () => {
                           );
                         case "tool-agenticSearch":
                         case "tool-agenticCode":
+                        case "tool-agenticDataAnalysis":
                         case "tool-agenticArtifact":
                           return (
                             <>
@@ -164,7 +182,14 @@ const InputDemo = () => {
             <ConversationScrollButton />
           </Conversation>
 
-          <PromptInput onSubmit={handleSubmit} globalDrop multiple>
+          <PromptInput
+            onSubmit={handleSubmit}
+            globalDrop
+            multiple
+            accept="text/csv,application/pdf,image/jpeg,image/png"
+            maxFiles={10}
+            maxFileSize={5 * 1024 * 1024}
+          >
             <PromptInputBody className="pt-2">
               <PromptInputAttachments>
                 {(attachment) => <PromptInputAttachment data={attachment} />}
