@@ -54,7 +54,7 @@ const search2Tool = ({ writer }: { writer: UIMessageStreamWriter }) =>
           steps: {},
         } as ChainOfThoughtRun,
       });
-     
+
       const { fullStream } = streamText({
         model: "openai/gpt-4.1-nano",
         prompt: `You are an advanced researcher, Here's how you work:
@@ -85,7 +85,7 @@ const search2Tool = ({ writer }: { writer: UIMessageStreamWriter }) =>
         },
       });
 
-      let sources: { url: string; title: string; text: string }[] = [];
+      const sources: { url: string; title: string; text: string }[] = [];
       for await (const chunk of fullStream) {
         switch (chunk.type) {
           case "tool-call":

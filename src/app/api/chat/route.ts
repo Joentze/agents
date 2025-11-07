@@ -10,9 +10,13 @@ import {
 import { search2Tool as agenticSearch } from "@/app/api/chat/tools/search";
 import { artifactTool } from "./tools/artifact";
 import { dataAnalysisTool } from "./tools/data-analysis";
+import { fileCreatorTool } from "./tools/file-creator";
+import { generateFiles } from "./tools/app-agent/generate-files";
+import { AppRunner } from "./classes/app-runner";
+import { appBuilderTool } from "./tools/app-builder";
 
 // Allow streaming responses up to 30 seconds
-export const maxDuration = 30;
+export const maxDuration = 120;
 
 export async function POST(req: Request) {
   const { messages, model }: { messages: UIMessage[]; model: string } =
@@ -47,7 +51,8 @@ export async function POST(req: Request) {
         - Use the agentic search tool to find information.
         - Use the agentic artifact tool to create a artifact/document/report/flash cards, best used of display information in a structured way.
         - Use the agentic data analysis tool to analyze the data, use this when you need to analyze csv data.
-
+        - Use the agentic file creator tool to create a file, use this when you need to create a .ipynb, .pdf, .md, .pptx, .xlsx, .csv file.
+        - Use the app builder tool to build an app
         ${nudge}
         `,
         tools: {
@@ -60,6 +65,13 @@ export async function POST(req: Request) {
               url: file.url,
             })),
           }),
+          agenticFileCreator: fileCreatorTool({ writer }),
+          generateFiles: generateFiles({
+            runner: new AppRunner({ runId: "xxx", writer }),
+            writer,
+            messages,
+          }),
+          appBuilder: appBuilderTool({ writer, messages }),
         },
         providerOptions: {
           openai: {

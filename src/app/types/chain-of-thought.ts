@@ -58,7 +58,8 @@ type ChainOfThoughtRunType =
   | "agentic-search"
   | "agentic-code"
   | "agentic-data-analysis"
-  | "agentic-artifact";
+  | "agentic-artifact"
+  | "agentic-file-creator";
 
 type RunStepStatus = "pending" | "completed" | "error";
 type ChainOfThoughtRun = {
@@ -93,4 +94,5 @@ export type {
   DateStep,
   WritingStep,
   ComponentStep,
+  RunStepStatus,
 };

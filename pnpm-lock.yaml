@@ -50,6 +50,12 @@ importers:
       '@tiptap/core':
         specifier: ^3.7.2
         version: 3.7.2(@tiptap/pm@3.7.2)
+      '@tiptap/extension-image':
+        specifier: ^3.9.0
+        version: 3.9.0(@tiptap/core@3.7.2(@tiptap/pm@3.7.2))
+      '@tiptap/extension-mathematics':
+        specifier: ^3.9.0
+        version: 3.9.0(@tiptap/core@3.7.2(@tiptap/pm@3.7.2))(@tiptap/pm@3.7.2)(katex@0.16.25)
       '@tiptap/extension-table':
         specifier: ^3.7.2
         version: 3.7.2(@tiptap/core@3.7.2(@tiptap/pm@3.7.2))(@tiptap/pm@3.7.2)
@@ -1160,6 +1166,11 @@ packages:
       '@tiptap/core': ^3.7.2
       '@tiptap/pm': ^3.7.2
 
+  '@tiptap/extension-image@3.9.0':
+    resolution: {integrity: sha512-P+uDvoeejH2wNSEamWTI8m7ABXN+woMGHLhRA0zZUqL8I36WVBgAUsgrsSNlaLJVV4/9gO7YyLSh8NFLUdFfKw==}
+    peerDependencies:
+      '@tiptap/core': ^3.9.0
+
   '@tiptap/extension-italic@3.7.2':
     resolution: {integrity: sha512-1tfF37LvKgA5hg09UBgOjdMLNRb1C6keIOBF0r5oHKeWPYOf4z3j5IU9PsFUoOn53XRMb1aiD/TNbGPyoT3Fyw==}
     peerDependencies:
@@ -1186,6 +1197,13 @@ packages:
     peerDependencies:
       '@tiptap/core': ^3.7.2
       '@tiptap/pm': ^3.7.2
+
+  '@tiptap/extension-mathematics@3.9.0':
+    resolution: {integrity: sha512-NNqeD66CD7DTnew0GVnfwVP/L+sq0ckgn+7IhPyw7qqK0k3OpunpZ+Qh+/5rDWnRzGUQLjxcvaaOY1JDjHgWSg==}
+    peerDependencies:
+      '@tiptap/core': ^3.9.0
+      '@tiptap/pm': ^3.9.0
+      katex: ^0.16.4
 
   '@tiptap/extension-ordered-list@3.7.2':
     resolution: {integrity: sha512-Tu61/JXh1RRd3Kb+s7A7jmpnB+w1pqGSRfMXBtYHDHDIGyXu255ru7soX44lJfHGq/zYcTFSHGSsi8o23QONJg==}
@@ -4907,6 +4925,10 @@ snapshots:
       '@tiptap/core': 3.7.2(@tiptap/pm@3.7.2)
       '@tiptap/pm': 3.7.2
 
+  '@tiptap/extension-image@3.9.0(@tiptap/core@3.7.2(@tiptap/pm@3.7.2))':
+    dependencies:
+      '@tiptap/core': 3.7.2(@tiptap/pm@3.7.2)
+
   '@tiptap/extension-italic@3.7.2(@tiptap/core@3.7.2(@tiptap/pm@3.7.2))':
     dependencies:
       '@tiptap/core': 3.7.2(@tiptap/pm@3.7.2)
@@ -4929,6 +4951,12 @@ snapshots:
     dependencies:
       '@tiptap/core': 3.7.2(@tiptap/pm@3.7.2)
       '@tiptap/pm': 3.7.2
+
+  '@tiptap/extension-mathematics@3.9.0(@tiptap/core@3.7.2(@tiptap/pm@3.7.2))(@tiptap/pm@3.7.2)(katex@0.16.25)':
+    dependencies:
+      '@tiptap/core': 3.7.2(@tiptap/pm@3.7.2)
+      '@tiptap/pm': 3.7.2
+      katex: 0.16.25
 
   '@tiptap/extension-ordered-list@3.7.2(@tiptap/extension-list@3.7.2(@tiptap/core@3.7.2(@tiptap/pm@3.7.2))(@tiptap/pm@3.7.2))':
     dependencies:

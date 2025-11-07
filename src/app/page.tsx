@@ -45,6 +45,7 @@ import { ArtifactRenderer } from "@/components/ai-elements/artifact/artifact-ren
 import { cn } from "@/lib/utils";
 
 const models = [
+  // { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", provider: "openai" },
   { id: "openai/gpt-4.1-nano", name: "GPT-4.1 Nano", provider: "openai" },
   {
     id: "anthropic/claude-sonnet-4-20250514",
@@ -127,6 +128,7 @@ const InputDemo = () => {
                         case "tool-agenticCode":
                         case "tool-agenticDataAnalysis":
                         case "tool-agenticArtifact":
+                        case "tool-agenticFileCreator":
                           return (
                             <>
                               <ChainOfThoughtDisplay runId={part.toolCallId} />

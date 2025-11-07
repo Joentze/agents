@@ -1,11 +1,12 @@
 import {
   NodeViewContent,
   NodeViewWrapper,
+  ReactNodeViewProps,
   ReactNodeViewRenderer,
 } from "@tiptap/react";
 import { createBlockMarkdownSpec, Node } from "@tiptap/core";
 
-const CustomReactComponent = ({ node }: any) => {
+const CustomReactComponent = ({ node }: ReactNodeViewProps) => {
   return (
     <NodeViewWrapper className="custom-react-node">
       <div

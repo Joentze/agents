@@ -47,7 +47,7 @@ const artifactTool = ({ writer }: ArtifactToolParams) =>
       plan: z
         .string()
         .describe(
-          "a point-by-point of what needs to be written in the artifact"
+          "a point-by-point of what needs to be written in the artifact, and what sources, assets to include in the artifact"
         ),
     }),
 

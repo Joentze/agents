@@ -81,7 +81,7 @@ const chainOfThoughtDisplaySteps: ChainOfThoughtDisplaySteps = {
     icon: TerminalSquare,
   },
   date: {
-    icon: Calendar,
+  icon: Calendar,
   },
   writing: {
     icon: Pencil,
@@ -113,6 +113,11 @@ const chainOfThoughtDisplayHeaders: ChainOfThoughtDisplayHeaders = {
     icon: ChartAreaIcon,
     beforeLabel: "Analyzing Data",
     afterLabel: "Analyzed Data",
+  },
+  "agentic-file-creator": {
+    icon: FileIcon,
+    beforeLabel: "Creating File",
+    afterLabel: "Created File",
   },
 };
 

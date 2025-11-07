@@ -9,6 +9,8 @@ import {
   ArtifactHeader,
   ArtifactTitle,
 } from "../artifact";
+import { Image } from "@tiptap/extension-image";
+import { Mathematics } from "@tiptap/extension-mathematics";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { Markdown } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
@@ -17,7 +19,6 @@ import { Share, X } from "lucide-react";
 import { useArtifactStore } from "@/hooks/artifact/use-artifact";
 
 import { useEffect } from "react";
-import { CustomReactNode } from "@/components/ai-elements/artifact/custom/custom-react-node";
 import { Callout } from "./custom/callout-node";
 
 interface ArtifactRendererProps {
@@ -33,20 +34,23 @@ export function ArtifactRenderer({
   const artifact = artifacts[artifactId];
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [Markdown, TableKit, StarterKit, Callout],
+    extensions: [Markdown, TableKit, StarterKit, Callout, Image, Mathematics],
     contentType: "markdown",
     content: defaultContent || "",
   });
+
+  useEffect(() => {
+    if (artifact && editor) {
+      editor.commands.setContent(artifact.content, {
+        emitUpdate: false,
+        contentType: "markdown",
+      });
+    }
+  }, [artifact, editor]);
+
   if (!artifact) {
     return null;
   }
-
-  useEffect(() => {
-    editor?.commands.setContent(artifact.content, {
-      emitUpdate: false,
-      contentType: "markdown",
-    });
-  }, [artifact]);
 
   return (
     <motion.div

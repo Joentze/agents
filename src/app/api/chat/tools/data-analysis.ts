@@ -18,7 +18,8 @@ type DataAnalysisToolParams = {
 const dataAnalysisTool = ({ writer, files }: DataAnalysisToolParams) =>
   tool({
     name: "data-analysis",
-    description: "Analyze CSV, Excel, or JSON data",
+    description:
+      "Analyze CSV, Excel, JSON data, create visualizations (pie charts, bar charts, line charts, etc.), and write code to analyze the data, if the user needs to create jupyter notebook/ipynb files use this tool to create the file",
     inputSchema: z.object({
       title: z.string().describe("The title of the data analysis"),
       description: z.string().describe("The description of the data analysis"),
@@ -49,10 +50,16 @@ const dataAnalysisTool = ({ writer, files }: DataAnalysisToolParams) =>
           },
         },
       });
+
       const sandbox = await Sandbox.create({
+        source: {
+          type: "git",
+          url: "https://github.com/Joentze/vercel-python-sandbox.git",
+        },
         runtime: "python3.13",
-        timeout: ms("1 minute"),
+        timeout: ms("2 minutes"),
       });
+
       writer.write({
         type: "data-chain-of-thought-step-update",
         data: {
@@ -68,11 +75,17 @@ const dataAnalysisTool = ({ writer, files }: DataAnalysisToolParams) =>
       let response = "";
       try {
         // load files
-        let filePaths: string[] = [];
+        const filePaths: string[] = [];
+        await sandbox.runCommand({
+          cmd: "pip",
+          args: ["install", "-r", "requirements.txt"],
+          stdout: process.stdout,
+          stderr: process.stderr,
+        });
         if (files.length > 0) {
           await sandbox.mkDir("data");
           await sandbox.mkDir("results");
-          await sandbox.runCommand({ cmd: "pip", args: ["install", "pandas"] });
+
           // download files
           const downloadFilesStepId = randomUUID();
           writer.write({
@@ -117,10 +130,13 @@ const dataAnalysisTool = ({ writer, files }: DataAnalysisToolParams) =>
 
           Follow these rules:
           - use pandas to analyze the data
+          - use seaborn/matplotlib to visualize the data
+          - when you use seaborn/matplotlib, ONLY save the plots as images in the results/ directory
           - read files only from the ./data/ directory
           - Optionally, write results to the results/ directory
           - ALWAYS use print statements to debug your code, or to review results
           - Use print statements to review data from data analysis from pandas
+          - If the user needs to create ipynb files, use the nbformat library to create the file into the results/ directory.
           
 
           Possible Approaches:
@@ -141,7 +157,7 @@ const dataAnalysisTool = ({ writer, files }: DataAnalysisToolParams) =>
               parallelToolCalls: false,
             },
           },
-          stopWhen: stepCountIs(5),
+          stopWhen: stepCountIs(10),
           tools: {
             runCode: tool({
               name: "run-code",
@@ -193,34 +209,55 @@ const dataAnalysisTool = ({ writer, files }: DataAnalysisToolParams) =>
                     data: { task, code, output },
                   },
                 });
+
                 return output;
               },
             }),
           },
         });
+        const uploadResultFiles = await sandbox.runCommand({
+          cmd: "python",
+          args: ["-m", "upload_result_files"],
+          env: {
+            BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN as string,
+            BLOB_READ_WRITE_URL: process.env.BLOB_READ_WRITE_URL as string,
+          },
+          stdout: process.stdout,
+          stderr: process.stderr,
+        });
+        writer.write({
+          type: "data-chain-of-thought-run-end",
+          data: {
+            status: "completed",
+            type: "agentic-data-analysis",
+            id: runId,
+            endDatetime: Date.now(),
+          },
+        });
+        const uploadedFiles = await uploadResultFiles.output();
+
+        return `
+        The files analyzed are:
+         ${files.map(({ filename, url }) => `[${filename}](${url})`).join("\n")}
+        The following is the output of the code for each task:
+         ${response}
+         Return tabular data in table markdown format.
+         Return any other relevant information in markdown format.
+  
+        Reuse the files analysed should there be follow up questions.
+  
+        If there are any result files, Follow these rules:
+        - If the file is an image, return the image in GFM image markdown format.
+        - ELSE return the file as a hyperlink and urge user to download the file from the following URL
+
+        The result files are:
+        ${uploadedFiles}
+        
+         `;
         // end sandbox
       } finally {
         await sandbox.stop();
       }
-      writer.write({
-        type: "data-chain-of-thought-run-end",
-        data: {
-          status: "completed",
-          type: "agentic-data-analysis",
-          id: runId,
-          endDatetime: Date.now(),
-        },
-      });
-      return `
-      The files analyzed are:
-       ${files.map(({ filename, url }) => `[${filename}](${url})`).join("\n")}
-      The following is the output of the code for each task:
-       ${response}
-       Return tabular data in table markdown format.
-       Return any other relevant information in markdown format.
-
-      Reuse the files analysed should there be follow up questions.
-       `;
     },
   });
 
