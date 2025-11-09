@@ -39,6 +39,7 @@ function getSandboxUrl({
             previewUrl,
           } as AppBuilderStatusDataPart,
         });
+        console.log(`Preview URL: ${previewUrl}`);
         return `The preview URL of the sandbox is: ${previewUrl}`;
       } catch (error) {
         console.error(error);

@@ -28,6 +28,11 @@ Use Generate Files when:
 - Avoid redundant file generation if the file already exists and is unchanged
 - Use conventional file/folder structures for the tech stack in use
 - If replacing an existing file, ensure the update fully satisfies the user's request
+- **ALWAYS include Tailwind CSS configuration files** when scaffolding new Next.js apps:
+  - \`tailwind.config.ts\` - Tailwind configuration
+  - \`postcss.config.mjs\` - PostCSS configuration
+  - \`app/globals.css\` - MUST include Tailwind directives (@import "tailwindcss" for v4, or @tailwind directives for v3)
+  - \`app/layout.tsx\` - MUST import "./globals.css"
 
 ## Examples of When to Use This Tool
 
@@ -50,17 +55,19 @@ Assistant: I'll generate the necessary Next.js files for the dashboard and API.
 
 <example>
 User: Bootstrap a new Next.js app with TypeScript and Tailwind
-Assistant: I'll scaffold a complete Next.js application structure.
+Assistant: I'll scaffold a complete Next.js application structure with proper Tailwind setup.
 *Uses Generate Files to create:*
-- \`package.json\` (with Next.js, React, TypeScript dependencies)
-- \`app/layout.tsx\` (root layout)
-- \`app/page.tsx\` (home page)
-- \`tailwind.config.ts\` and \`postcss.config.mjs\`
-- \`next.config.ts\`
-- \`tsconfig.json\`
+- \`package.json\` (with Next.js, React, TypeScript, Tailwind CSS, @tailwindcss/postcss dependencies)
+- \`tailwind.config.ts\` (Tailwind configuration with content paths)
+- \`postcss.config.mjs\` (PostCSS with @tailwindcss/postcss plugin)
+- \`app/globals.css\` (with @import "tailwindcss" for v4 or @tailwind directives for v3)
+- \`app/layout.tsx\` (root layout that imports "./globals.css")
+- \`app/page.tsx\` (home page using Tailwind classes)
+- \`next.config.ts\` (Next.js configuration - must be .ts format)
+- \`tsconfig.json\` (TypeScript configuration)
 </example>
 
-\`next.config.ts\` must always be in .ts format.
+**CRITICAL:** \`next.config.ts\` must always be in .ts format. For Tailwind to work, all four config files (tailwind.config.ts, postcss.config.mjs, app/globals.css with directives, app/layout.tsx with import) are REQUIRED.
 
 ## When NOT to Use This Tool
 

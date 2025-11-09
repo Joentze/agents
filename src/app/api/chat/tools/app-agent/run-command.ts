@@ -31,17 +31,21 @@ function runCommand({ runner }: RunCommandParams) {
           detached: wait ? false : true,
           cmd: command,
           args,
+          stderr: process.stderr,
+          stdout: process.stdout,
         });
-
-        const [stdout, stderr] = await Promise.all([
-          cmdResult.stdout(),
-          cmdResult.stderr(),
-        ]);
-        const output = `The output for command ${command} ${args.join(
-          " "
-        )} is: stdout: ${stdout}\nstderr: ${stderr}`;
-        // console.log(output);
-        return output;
+        if (wait) {
+          const [stdout, stderr] = await Promise.all([
+            cmdResult.stdout(),
+            cmdResult.stderr(),
+          ]);
+          const output = `The output for command ${command} ${args.join(
+            " "
+          )} is: stdout: ${stdout}\nstderr: ${stderr}`;
+          // console.log(output);
+          return output;
+        }
+        return `Command: ${command} ${args.join(" ")} has been run`;
       } catch (error) {
         console.error(error);
         return `Error running command ${command} ${args.join(" ")}: ${error}`;

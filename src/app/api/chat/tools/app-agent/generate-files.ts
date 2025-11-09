@@ -2,9 +2,7 @@ import { AppAgentToolParams } from "@/app/types/app-agent";
 import { generateFilesPrompt as description } from "./generate-files-prompt";
 import {
   convertToModelMessages,
-  generateObject,
   ModelMessage,
-  streamObject,
   streamText,
   tool,
   UIMessage,
@@ -12,6 +10,7 @@ import {
 } from "ai";
 import z from "zod";
 import { AppRunner } from "../../classes/app-runner";
+import { generateFileContentsPrompt as system } from "./generate-file-contents-prompt";
 
 // export class Deferred<T> {
 //   private resolveFn: (value: T | PromiseLike<T>) => void = () => {};
@@ -142,67 +141,16 @@ async function generateFileContents({
   const generated: z.infer<typeof fileSchema>[] = [];
 
   for (const path of paths) {
+    writer.write({
+      type: "data-app-builder-create-file",
+      data: {
+        path,
+      },
+    });
     const { fullStream } = streamText({
-      model: "anthropic/claude-sonnet-4.5",
-      maxOutputTokens: 5000,
-      system: `You are a Next.js file content generator specialized in creating production-ready files for Next.js applications.
-
-## Context
-You are generating files for a **Next.js App Router** application. All files must follow Next.js conventions and best practices.
-
-## Critical Rules
-1. **NEVER** generate lock files (pnpm-lock.yaml, package-lock.json, yarn.lock) - package managers create these automatically
-2. **NEVER** add markdown code fences (\`\`\` or \`\`\`language) - return ONLY the raw file content
-3. Generate complete, production-ready code - no placeholders or TODOs
-4. Follow Next.js App Router conventions (app/ directory, route handlers, server/client components)
-
-## Next.js App Structure
-- \`app/\` - App Router pages and layouts (use this, not pages/)
-- \`app/api/\` - API routes using route.ts files
-- \`components/\` - React components (mark client components with 'use client')
-- \`lib/\` - Utility functions and helpers
-- \`public/\` - Static assets
-- Root files: next.config.ts, tsconfig.json, tailwind.config.ts, etc.
-
-## Package.json Requirements
-When generating package.json, it MUST:
-- Include "next" as a dependency (latest version or specified)
-- Include "react" and "react-dom" as dependencies
-- Have Next.js scripts: "dev": "next dev", "build": "next build", "start": "next start"
-- Use "type": "module" if using ESM
-- Include TypeScript dependencies if using .ts/.tsx files
-- Example structure:
-  {
-    "name": "nextjs-app",
-    "version": "0.1.0",
-    "private": true,
-    "scripts": {
-      "dev": "next dev",
-      "build": "next build",
-      "start": "next start"
-    },
-    "dependencies": {
-      "next": "^15.0.0",
-      "react": "^18.3.0",
-      "react-dom": "^18.3.0"
-    },
-    "devDependencies": {
-      "@types/node": "^20",
-      "@types/react": "^18",
-      "@types/react-dom": "^18",
-      "typescript": "^5"
-    }
-  }
-
-## File Generation Best Practices
-- TypeScript: Use proper types, interfaces, and type safety
-- Server Components: Default in App Router, no 'use client' needed
-- Client Components: Add 'use client' directive when using hooks, event handlers, or browser APIs
-- API Routes: Use route.ts with named exports (GET, POST, etc.)
-- Imports: Use @/ alias for src/ directory imports
-- Styling: Use Tailwind CSS classes if applicable, or CSS modules
-
-Review the conversation history to understand the user's requirements and generate files that fulfill their exact needs.`,
+      model: "vercel/v0-1.5-md",
+      maxOutputTokens: 10000,
+      system,
       messages: [
         ...convertToModelMessages(messages),
         ...generated.map(({ path, content }) => {

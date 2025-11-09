@@ -9,6 +9,8 @@ import {
   StepUpdateType,
 } from "@/app/types/chain-of-thought";
 import { ArtifactStart } from "@/app/types/artifact";
+import { useAppBuilder } from "../app-builder/use-app-builder";
+import { AppBuilderStatusDataPart } from "@/app/types/app-agent";
 
 function useAiChat() {
   const {
@@ -18,14 +20,20 @@ function useAiChat() {
     addArtifactDelta,
     setCurrentArtifact,
   } = useArtifactStore();
-
+  const {
+    currentPath,
+    sandboxId,
+    status: appBuilderStatus,
+    files,
+    errorMessage,
+    previewUrl,
+    createFile,
+    updateFile,
+    updateStatus,
+  } = useAppBuilder();
   const { runs, addRun, addStep, updateStep, clearRuns, updateRun } =
     useChainOfThoughtStore();
-  useEffect(() => {
-    if (currentArtifact && Object.keys(artifacts).includes(currentArtifact)) {
-      console.log("artifacts", artifacts[currentArtifact]);
-    }
-  }, [artifacts, currentArtifact]);
+
   const aiSdkUseChat = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
@@ -100,6 +108,33 @@ function useAiChat() {
           };
           addArtifactDelta(artifactRunId as string, delta);
           break;
+        case "data-app-builder-status":
+          const {
+            status: builderStatus,
+            sandboxId: builderSandboxId,
+            errorMessage: builderErrorMessage,
+            previewUrl: builderPreviewUrl,
+          } = data as unknown as AppBuilderStatusDataPart;
+          updateStatus({
+            status: builderStatus,
+            sandboxId: builderSandboxId,
+            errorMessage: builderErrorMessage,
+            previewUrl: builderPreviewUrl,
+          });
+          break;
+        case "data-app-builder-create-file":
+          const { path: appBuilderCreateFilePath } = data as unknown as {
+            path: string;
+          };
+          createFile(appBuilderCreateFilePath, "");
+          break;
+        case "data-app-builder-file-content-delta":
+          const { path, delta: appBuilderFileTextDelta } = data as unknown as {
+            path: string;
+            delta: string;
+          };
+          updateFile(path, appBuilderFileTextDelta);
+          break;
         default:
           break;
       }
@@ -110,7 +145,18 @@ function useAiChat() {
       clearRuns();
     };
   }, [clearRuns]);
-  return { ...aiSdkUseChat, runs, currentArtifact, artifacts };
+  return {
+    ...aiSdkUseChat,
+    runs,
+    currentArtifact,
+    artifacts,
+    currentPath,
+    sandboxId,
+    appBuilderStatus,
+    files,
+    errorMessage,
+    previewUrl,
+  };
 }
 
 export { useAiChat };

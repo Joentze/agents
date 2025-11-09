@@ -43,6 +43,20 @@ import { ArtifactPlanDisplay } from "@/components/ai-elements/artifact/artifact-
 import { ArtifactInput } from "./types/artifact";
 import { ArtifactRenderer } from "@/components/ai-elements/artifact/artifact-renderer";
 import { cn } from "@/lib/utils";
+import { motion } from "motion/react";
+import {
+  Artifact,
+  ArtifactAction,
+  ArtifactActions,
+  ArtifactDescription,
+  ArtifactHeader,
+  ArtifactTitle,
+  ArtifactContent,
+} from "@/components/ai-elements/artifact";
+import { Code, Eye, X } from "lucide-react";
+import { FileExplorer } from "@/components/ai-elements/app-builder/file-tree";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import AppBuilderRenderer from "@/components/ai-elements/app-builder/app-builder-renderer";
 
 const models = [
   // { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", provider: "openai" },
@@ -59,8 +73,18 @@ const InputDemo = () => {
   const [model, setModel] = useState<string>(models[0].id);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { messages, status, sendMessage, currentArtifact, artifacts } =
-    useChat();
+  const {
+    messages,
+    status,
+    sendMessage,
+    currentArtifact,
+    artifacts,
+    appBuilderStatus,
+    currentPath,
+    files,
+    errorMessage,
+    previewUrl,
+  } = useChat();
 
   const handleSubmit = (message: PromptInputMessage) => {
     const hasText = Boolean(message.text);
@@ -107,7 +131,8 @@ const InputDemo = () => {
         <div
           className={cn(
             "h-screen flex flex-col p-4 mx-auto",
-            currentArtifact ? "w-full" : "w-full md:w-2/3"
+            currentArtifact ? "w-full" : "w-full md:w-2/3",
+            appBuilderStatus !== "not-started" ? "w-full" : "w-full md:w-2/3"
           )}
         >
           <ModeToggle />
@@ -242,6 +267,14 @@ const InputDemo = () => {
         </div>
         {currentArtifact && artifacts[currentArtifact] && (
           <ArtifactRenderer artifactId={currentArtifact} />
+        )}
+        {appBuilderStatus !== "not-started" && (
+          <AppBuilderRenderer
+            currentPath={currentPath}
+            files={files}
+            status={appBuilderStatus}
+            previewUrl={previewUrl}
+          />
         )}
       </div>
     </>

@@ -52,8 +52,8 @@ function appBuilderTool({ messages, writer }: AppBuilderToolParams) {
         await generateText({
           model: "openai/gpt-5",
           system,
-          stopWhen: [stepCountIs(10), hasToolCall("get-sandbox-url")],
-          prompt: `Generate an app based on the following details: ${details}, get the sandbox URL once the app is built and the dev server is running`,
+          stopWhen: [stepCountIs(4), hasToolCall("get-sandbox-url")],
+          prompt: `Generate an app based on the following details: ${details}, get the sandbox URL once the app is built and the dev server is running, try to be straight forward and concise, minimise the number of files, only generate the necessary files`,
           tools: {
             "run-command": runCommand({ runner }),
             "generate-files": generateFiles({ runner, writer, messages }),
