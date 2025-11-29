@@ -155,6 +155,16 @@ ${JSON.stringify(chunk.input)}
         }
       }
       writer.write({
+        type: "data-artifact-end",
+        id: runId,
+        data: {
+          title,
+          description,
+          plan,
+          content,
+        },
+      });
+      writer.write({
         type: "data-chain-of-thought-step-update",
         data: {
           status: "completed",

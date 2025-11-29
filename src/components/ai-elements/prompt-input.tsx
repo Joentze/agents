@@ -314,7 +314,7 @@ export function PromptInputAttachment({
   return (
     <div
       className={cn(
-        "group relative h-14 w-14 rounded-md border",
+        "group relative h-14 w-14 rounded-lg border",
         className,
         mediaType === "image" ? "h-14 w-14" : "h-8 w-auto max-w-full"
       )}

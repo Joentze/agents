@@ -65,10 +65,7 @@ export const WebPreview = ({
   return (
     <WebPreviewContext.Provider value={contextValue}>
       <div
-        className={cn(
-          "flex size-full flex-col rounded-lg border bg-card",
-          className
-        )}
+        className={cn("flex size-full flex-col bg-card", className)}
         {...props}
       >
         {children}
@@ -165,7 +162,7 @@ export const WebPreviewUrl = ({
   );
 };
 
-export type WebPreviewBodyProps = ComponentProps<"iframe"> & {
+export type WebPreviewBodyProps = Omit<ComponentProps<"iframe">, "loading"> & {
   loading?: ReactNode;
 };
 
@@ -186,7 +183,9 @@ export const WebPreviewBody = ({
         title="Preview"
         {...props}
       />
-      {loading}
+      {loading && (
+        <div className="flex items-center justify-center h-full">{loading}</div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,3 @@
-import { File as CodeFile } from "@/hooks/app-builder/use-app-builder";
 export interface FileNode {
   children?: FileNode[];
   content?: string;
@@ -6,9 +5,11 @@ export interface FileNode {
   name: string;
   path: string;
   type: "file" | "folder";
+  fullPath: string;
 }
 
 interface FileNodeBuilder {
+  fullPath: string;
   children?: { [key: string]: FileNodeBuilder };
   content?: string;
   expanded?: boolean;
@@ -17,10 +18,7 @@ interface FileNodeBuilder {
   type: "file" | "folder";
 }
 
-export function buildFileTree(
-  paths: string[],
-  files: Record<string, CodeFile>
-): FileNode[] {
+export function buildFileTree(paths: string[]): FileNode[] {
   if (paths.length === 0) return [];
   const root: { [key: string]: FileNodeBuilder } = {};
 
@@ -39,9 +37,9 @@ export function buildFileTree(
           name: part,
           type: isFile ? "file" : "folder",
           path: currentPath,
-          content: isFile ? files[path]?.content ?? "" : undefined,
           children: isFile ? undefined : {},
           expanded: true,
+          fullPath: path,
         };
       }
 

@@ -2,13 +2,8 @@ import {
   ChainOfThoughtRun,
   StepUpdateType,
 } from "@/app/types/chain-of-thought";
-import {
-  generateObject,
-  stepCountIs,
-  streamText,
-  tool,
-  UIMessageStreamWriter,
-} from "ai";
+import { google, GoogleGenerativeAIProviderMetadata } from "@ai-sdk/google";
+import { generateText, stepCountIs, tool, UIMessageStreamWriter } from "ai";
 import { randomUUID } from "crypto";
 import Exa from "exa-js";
 import { z } from "zod";
@@ -55,8 +50,12 @@ const search2Tool = ({ writer }: { writer: UIMessageStreamWriter }) =>
         } as ChainOfThoughtRun,
       });
 
-      const { fullStream } = streamText({
-        model: "openai/gpt-4.1-nano",
+      const {
+        text: searchResponseText,
+        sources,
+        providerMetadata,
+      } = await generateText({
+        model: google("gemini-2.5-flash"),
         prompt: `You are an advanced researcher, Here's how you work:
         1. You start by using the date tool to get the current date.
         2. You break down the query into relevant topics and use the search
@@ -64,7 +63,8 @@ const search2Tool = ({ writer }: { writer: UIMessageStreamWriter }) =>
         3. You summarise the information and use the text tool to store the information.`,
         stopWhen: stepCountIs(5),
         tools: {
-          searchTool,
+          url_context: google.tools.urlContext({}) as any,
+          searchTool: google.tools.googleSearch({}) as any,
           dateTool: tool({
             name: "date",
             description: "Get the current date",
@@ -78,80 +78,48 @@ const search2Tool = ({ writer }: { writer: UIMessageStreamWriter }) =>
             },
           }),
         },
-        providerOptions: {
-          openai: {
-            parallelToolCalls: false,
+      });
+      const metadata = providerMetadata?.google as
+        | GoogleGenerativeAIProviderMetadata
+        | undefined;
+
+      const sourceUrls = metadata?.urlContextMetadata?.urlMetadata.map(
+        ({ retrievedUrl }) => retrievedUrl
+      );
+      const sourceStepId = randomUUID();
+      writer.write({
+        type: "data-chain-of-thought-step-update",
+        data: {
+          status: "pending",
+          type: "search",
+          runId,
+          stepId: sourceStepId,
+          data: {
+            query,
+            results: sources
+              .filter((source) => source.sourceType === "url")
+              .map((source) => {
+                return {
+                  url: (source as any).url,
+                  sourceUrl: `https://${(source as any).title}`,
+                  title: (source as any).title ?? "",
+                  text: "",
+                };
+              }),
           },
-        },
+        } as StepUpdateType,
       });
 
-      const sources: { url: string; title: string; text: string }[] = [];
-      for await (const chunk of fullStream) {
-        switch (chunk.type) {
-          case "tool-call":
-            if (chunk.toolName === "searchTool") {
-              writer.write({
-                type: "data-chain-of-thought-step-update",
-                data: {
-                  status: "pending",
-                  type: "search",
-                  runId,
-                  stepId: chunk.toolCallId,
-                  data: {
-                    query: (chunk.input as { query: string })?.query || "",
-                    results: [],
-                  },
-                } as StepUpdateType,
-              });
-            }
-
-            break;
-          case "tool-result":
-            if (chunk.toolName === "searchTool") {
-              sources.push(
-                ...(chunk.output as {
-                  url: string;
-                  title: string;
-                  text: string;
-                }[])
-              );
-              writer.write({
-                type: "data-chain-of-thought-step-update",
-                data: {
-                  status: "completed",
-                  type: "search",
-                  runId,
-                  stepId: chunk.toolCallId,
-                  data: {
-                    query: (chunk.input as { query: string })?.query || "",
-                    results: chunk.output as {
-                      url: string;
-                      title: string;
-                      text: string;
-                    }[],
-                  },
-                } as StepUpdateType,
-              });
-            }
-            if (chunk.toolName === "dateTool") {
-              writer.write({
-                type: "data-chain-of-thought-step-update",
-                data: {
-                  status: "completed",
-                  type: "date",
-                  runId,
-                  stepId: chunk.toolCallId,
-                  data: {
-                    date: chunk.output,
-                  },
-                } as StepUpdateType,
-              });
-            }
-            break;
-          default:
-            break;
-        }
-      }
+      sources
+        .filter((source) => source.sourceType === "url")
+        .forEach((source, index) => {
+          writer.write({
+            sourceId: `source-${index.toString()}`,
+            type: "source-url",
+            url: `${(source as any).url}`,
+            title: (source as any).title ?? "",
+          });
+        });
       const summaryId = randomUUID();
       writer.write({
         type: "data-chain-of-thought-step-update",
@@ -163,27 +131,11 @@ const search2Tool = ({ writer }: { writer: UIMessageStreamWriter }) =>
           data: { text: "" },
         } as StepUpdateType,
       });
-      const {
-        object: { text, relevantSources },
-      } = await generateObject({
-        model: "openai/gpt-4.1-nano",
-        temperature: 0,
-        schema: z.object({
-          text: z.string(),
-          relevantSources: z
-            .array(z.string())
-            .describe("The sources that are relevant to the information"),
-        }),
-        prompt: `You read vast amounts of information and give a detailed report of the following information in point form
-remember to include the source of the information in the report. Like this:
-        Content: ${JSON.stringify(sources)}
-        return in plain text, no markdown, no html, no json, no code, no anything else.
-        `,
-      });
-      relevantSources.forEach((source, index) =>
+
+      (sourceUrls ?? []).forEach((url, index) =>
         writer.write({
           type: "source-url",
-          url: source,
+          url,
           sourceId: `source-${index.toString()}`,
         })
       );
@@ -194,7 +146,7 @@ remember to include the source of the information in the report. Like this:
           type: "text",
           runId,
           stepId: summaryId,
-          data: { text },
+          data: { text: searchResponseText },
         } as StepUpdateType,
       });
       writer.write({
@@ -205,7 +157,7 @@ remember to include the source of the information in the report. Like this:
           endDatetime: Date.now(),
         },
       });
-      return `Write a detailed report of the following information:${text}`;
+      return `Write a detailed report of the following information:${searchResponseText}`;
     },
   });
 

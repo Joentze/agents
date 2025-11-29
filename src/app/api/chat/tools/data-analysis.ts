@@ -1,4 +1,4 @@
-import { Sandbox } from "@vercel/sandbox";
+import { Sandbox } from "@e2b/code-interpreter";
 import {
   FileUIPart,
   UIMessageStreamWriter,
@@ -7,8 +7,9 @@ import {
   tool,
 } from "ai";
 import { randomUUID } from "crypto";
-import ms from "ms";
 import z from "zod";
+import { put } from "@vercel/blob";
+import { nanoid } from "nanoid";
 
 type DataAnalysisToolParams = {
   writer: UIMessageStreamWriter;
@@ -51,15 +52,13 @@ const dataAnalysisTool = ({ writer, files }: DataAnalysisToolParams) =>
         },
       });
 
-      const sandbox = await Sandbox.create({
-        source: {
-          type: "git",
-          url: "https://github.com/Joentze/vercel-python-sandbox.git",
-        },
-        runtime: "python3.13",
-        timeout: ms("2 minutes"),
-      });
-
+      const sandbox = await (
+        await Sandbox.create("code-interpreter-v1", {
+          timeoutMs: 2 * 60 * 1000,
+        })
+      ).connect();
+      await sandbox.files.makeDir("data");
+      await sandbox.files.makeDir("results");
       writer.write({
         type: "data-chain-of-thought-step-update",
         data: {
@@ -76,16 +75,8 @@ const dataAnalysisTool = ({ writer, files }: DataAnalysisToolParams) =>
       try {
         // load files
         const filePaths: string[] = [];
-        await sandbox.runCommand({
-          cmd: "pip",
-          args: ["install", "-r", "requirements.txt"],
-          stdout: process.stdout,
-          stderr: process.stderr,
-        });
-        if (files.length > 0) {
-          await sandbox.mkDir("data");
-          await sandbox.mkDir("results");
 
+        if (files.length > 0) {
           // download files
           const downloadFilesStepId = randomUUID();
           writer.write({
@@ -99,13 +90,10 @@ const dataAnalysisTool = ({ writer, files }: DataAnalysisToolParams) =>
             },
           });
           await Promise.all(
-            files.map(({ filename, url }) => {
-              const fileDir = `./data/${filename as string}`;
-              filePaths.push(fileDir);
-              return sandbox.runCommand({
-                cmd: "curl",
-                args: ["-o", fileDir, url],
-              });
+            files.map(async ({ filename, url }) => {
+              const response = await fetch(url);
+              const arrayBuffer = await response.arrayBuffer();
+              return sandbox.files.write(`./data/${filename}`, arrayBuffer);
             })
           );
           writer.write({
@@ -121,7 +109,7 @@ const dataAnalysisTool = ({ writer, files }: DataAnalysisToolParams) =>
         }
 
         await generateText({
-          model: "alibaba/qwen3-coder",
+          model: "anthropic/claude-4.5-haiku",
           prompt: `
           You are a data analyst, you are given a title, description, a plan and a list of data files.
           
@@ -129,11 +117,8 @@ const dataAnalysisTool = ({ writer, files }: DataAnalysisToolParams) =>
           ${filePaths.join("\n")}
 
           Follow these rules:
-          - use pandas to analyze the data
-          - use seaborn/matplotlib to visualize the data
-          - when you use seaborn/matplotlib, ONLY save the plots as images in the results/ directory
-          - read files only from the ./data/ directory
-          - Optionally, write results to the results/ directory
+          - use matplotlib to visualize the data
+          - read files only from the ./data/ directory, do not read files from anything else unless the user asks you to do so
           - ALWAYS use print statements to debug your code, or to review results
           - Use print statements to review data from data analysis from pandas
           - If the user needs to create ipynb files, use the nbformat library to create the file into the results/ directory.
@@ -152,20 +137,13 @@ const dataAnalysisTool = ({ writer, files }: DataAnalysisToolParams) =>
 
           Write code to fulfill the title, description, and plan.
           `,
-          providerOptions: {
-            openai: {
-              parallelToolCalls: false,
-            },
-          },
-          stopWhen: stepCountIs(10),
+          stopWhen: stepCountIs(5),
           tools: {
             runCode: tool({
               name: "run-code",
-              description: "Run code in the sandbox",
+              description:
+                'When you use this tool, you run code in the sandbox. You will be running the python -c "<code>" command. There are no continuations from previous code blocks ran',
               inputSchema: z.object({
-                type: z
-                  .enum(["read-data", "write-code"])
-                  .describe("The type of task being performed"),
                 task: z.string().describe("The task to perform"),
                 code: z.string().describe("Python code to run"),
               }),
@@ -187,18 +165,35 @@ const dataAnalysisTool = ({ writer, files }: DataAnalysisToolParams) =>
                     },
                   },
                 });
-                const runPython = await sandbox.runCommand({
-                  cmd: "python",
-                  args: ["-c", code],
-                  // stderr: process.stderr,
-                  // stdout: process.stdout,
-                });
-                const output = await runPython.output();
+                const runPython = await sandbox.runCode(code);
+                const uploadedImages = await Promise.all(
+                  runPython.results.map(async ({ png, jpeg }, i) => {
+                    const imageData = png || jpeg;
 
-                response += `
-                Task: ${task}
-                Output: ${output}
+                    if (imageData) {
+                      return await put(
+                        `result-${nanoid(10)}.${i}.${png ? "png" : "jpeg"}`,
+                        Buffer.from(imageData, "base64"),
+                        {
+                          access: "public",
+                        }
+                      );
+                    }
+                  })
+                );
+
+                const codeResponse = `
+                Results: ${runPython.logs.stdout.join("\n")}
+                Result images: ${uploadedImages
+                  .map((image) => {
+                    if (image) {
+                      return `![${image.pathname}](${image.url})`;
+                    }
+                    return "";
+                  })
+                  .join("\n")}
                 `;
+                response += `task: ${task}\n\n${codeResponse}`;
                 writer.write({
                   type: "data-chain-of-thought-step-update",
                   data: {
@@ -206,25 +201,30 @@ const dataAnalysisTool = ({ writer, files }: DataAnalysisToolParams) =>
                     type: "code",
                     runId,
                     stepId: runCodeStepId,
-                    data: { task, code, output },
+                    data: { task, code, output: codeResponse },
                   },
                 });
 
-                return output;
+                return codeResponse;
               },
             }),
           },
         });
-        const uploadResultFiles = await sandbox.runCommand({
-          cmd: "python",
-          args: ["-m", "upload_result_files"],
-          env: {
-            BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN as string,
-            BLOB_READ_WRITE_URL: process.env.BLOB_READ_WRITE_URL as string,
-          },
-          stdout: process.stdout,
-          stderr: process.stderr,
-        });
+
+        return `
+        The files analyzed are:
+         ${files.map(({ filename, url }) => `[${filename}](${url})`).join("\n")}
+        The following is the output of the code for each task:
+         ${response}
+         Return tabular data in table markdown format.
+         Return any other relevant information in markdown format.
+         Display all images as Github Flavored Markdown images.
+         `;
+        // end sandbox
+      } catch (error) {
+        console.error(`Error analyzing data: ${error}`);
+        return `Error analyzing data: ${error}`;
+      } finally {
         writer.write({
           type: "data-chain-of-thought-run-end",
           data: {
@@ -234,29 +234,7 @@ const dataAnalysisTool = ({ writer, files }: DataAnalysisToolParams) =>
             endDatetime: Date.now(),
           },
         });
-        const uploadedFiles = await uploadResultFiles.output();
-
-        return `
-        The files analyzed are:
-         ${files.map(({ filename, url }) => `[${filename}](${url})`).join("\n")}
-        The following is the output of the code for each task:
-         ${response}
-         Return tabular data in table markdown format.
-         Return any other relevant information in markdown format.
-  
-        Reuse the files analysed should there be follow up questions.
-  
-        If there are any result files, Follow these rules:
-        - If the file is an image, return the image in GFM image markdown format.
-        - ELSE return the file as a hyperlink and urge user to download the file from the following URL
-
-        The result files are:
-        ${uploadedFiles}
-        
-         `;
-        // end sandbox
-      } finally {
-        await sandbox.stop();
+        await sandbox.kill();
       }
     },
   });

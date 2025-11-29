@@ -1,7 +1,7 @@
-import { Sandbox } from "@vercel/sandbox";
 import { UIMessageStreamWriter } from "ai";
 import ms from "ms";
 import { randomUUID } from "node:crypto";
+import { Sandbox } from "e2b";
 
 type AppRunnerStepType = "command" | "write-file" | "read-file";
 type AppRunnerStepParams = {
@@ -37,11 +37,41 @@ class AppRunner {
     this.writer = writer;
   }
   async start() {
-    this.sandbox = await Sandbox.create({
-      runtime: "node22",
-      timeout: this.timeout,
-      ports: [3000],
-    });
+    // this.sandbox = await Sandbox.create({
+    //   source: {
+    //     url: "https://github.com/Joentze/vercel-next-sandbox.git",
+    //     type: "git",
+    //   },
+    //   runtime: "node22",
+    //   timeout: this.timeout,
+    //   ports: [3000],
+    // });
+    // const template = Template()
+    //   .fromBunImage("1.3")
+    //   .setWorkdir("/home/user/nextjs-app")
+    //   .runCmd(
+    //     "bun create next-app --app --ts --tailwind --turbopack --yes --use-bun ."
+    //   )
+    //   .runCmd("bunx --bun shadcn@latest init -d")
+    //   .runCmd("bunx --bun shadcn@latest add --all")
+    //   .runCmd(
+    //     "mv /home/user/nextjs-app/* /home/user/ && rm -rf /home/user/nextjs-app"
+    //   )
+    //   .setWorkdir("/home/user")
+    //   .setStartCmd(
+    //     "bun --bun run dev --turbo",
+    //     waitForURL("http://localhost:3000")
+    //   );
+    // await Template.build(template, {
+    //   alias: "nextjs-shadcn-app",
+    //   cpuCount: 2, // CPU cores
+    //   memoryMB: 2048,
+    // });
+    this.sandbox = await (
+      await Sandbox.create("nextjs-app-shadcn-bun", {
+        timeoutMs: 5 * 60 * 1000,
+      })
+    ).connect();
     this.sandboxId = this.sandbox?.sandboxId;
   }
   getSandboxId() {
@@ -87,7 +117,7 @@ class AppRunner {
   }
   async stop() {
     if (this.sandbox) {
-      await this.sandbox.stop();
+      await this.sandbox.kill();
     }
   }
 }

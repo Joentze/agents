@@ -1,0 +1,1 @@
+ALTER TABLE "message" ADD COLUMN "metadata" json DEFAULT '{}'::json NOT NULL;

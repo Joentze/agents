@@ -2,19 +2,41 @@ const generateFilesPrompt = `Use this tool to generate and upload Next.js applic
 
 **This tool is specifically optimized for Next.js App Router applications.** All generated files will follow Next.js conventions, including proper App Router structure, TypeScript support, and modern React patterns.
 
-The generated files should be considered correct on first iteration and suitable for immediate use in the sandbox environment. This tool is essential for scaffolding Next.js apps, adding new features, writing configuration files, or fixing missing components.
+**IMPORTANT: The sandbox is initialized from shadcn-ui/next-template** which already includes:
+- Configuration files (next.config.ts, tsconfig.json, tailwind.config.ts, postcss.config.mjs)
+- Pre-installed shadcn UI components in \`components/ui/\`
+- Proper Tailwind CSS setup with globals.css
+- Root layout with correct setup
 
-All file paths must be relative to the sandbox root (e.g., \`app/page.tsx\`, \`package.json\`, \`components/Button.tsx\`, \`app/api/users/route.ts\`).
+**You should ONLY generate application-specific files:**
+- \`app/page.tsx\` - Your main page component
+- Custom components in \`components/\` directory (NOT in components/ui/)
+- API routes in \`app/api/\`
+- Additional pages or routes as needed
+
+**DO NOT generate these files (already in template):**
+- package.json (unless adding new dependencies)
+- tsconfig.json
+- next.config.ts
+- tailwind.config.ts
+- postcss.config.mjs
+- app/globals.css
+- app/layout.tsx (unless specifically modifying it)
+- Any files in components/ui/
+
+All file paths must be relative to the sandbox root (e.g., \`app/page.tsx\`, \`components/CustomComponent.tsx\`, \`app/api/users/route.ts\`).
 
 ## When to Use This Tool
 
 Use Generate Files when:
 
-1. You need to create one or more new files as part of a feature, scaffold, or fix
-2. The user requests code that implies file creation (e.g., new routes, APIs, components, services)
-3. You need to bootstrap a new application structure inside a sandbox
-4. You're completing a multi-step task that involves generating or updating source code
-5. A prior command failed due to a missing file, and you need to supply it
+1. You need to create application-specific files (pages, components, API routes)
+2. The user requests code that implies file creation (e.g., new routes, APIs, custom components)
+3. You need to implement features or functionality in the Next.js app
+4. You're completing a multi-step task that involves generating or updating application code
+5. A prior command failed due to a missing application file, and you need to supply it
+
+**Remember**: Configuration files are already in the template - focus on app-specific files only!
 
 ## File Generation Guidelines
 
@@ -25,58 +47,57 @@ Use Generate Files when:
 
 ## Best Practices
 
+- Focus on generating application-specific files (app/page.tsx, custom components, API routes)
+- **DO NOT regenerate config files** - they're already properly set up in the template
+- Use shadcn UI components from \`@/components/ui/\` - they're pre-installed!
+- Create custom components in \`components/\` directory (NOT in components/ui/)
 - Avoid redundant file generation if the file already exists and is unchanged
-- Use conventional file/folder structures for the tech stack in use
+- Use conventional file/folder structures for Next.js App Router
 - If replacing an existing file, ensure the update fully satisfies the user's request
-- **ALWAYS include Tailwind CSS configuration files** when scaffolding new Next.js apps:
-  - \`tailwind.config.ts\` - Tailwind configuration
-  - \`postcss.config.mjs\` - PostCSS configuration
-  - \`app/globals.css\` - MUST include Tailwind directives (@import "tailwindcss" for v4, or @tailwind directives for v3)
-  - \`app/layout.tsx\` - MUST import "./globals.css"
 
 ## Examples of When to Use This Tool
 
 <example>
-User: Add a \`NavBar.tsx\` component and include it in the root layout
-Assistant: I'll generate the \`NavBar.tsx\` component and update the root layout to include it.
+User: Create a todo list app
+Assistant: I'll generate the main page component with the todo list functionality using shadcn components.
 *Uses Generate Files to create:*
-- \`components/NavBar.tsx\` (client component with 'use client')
-- Modified \`app/layout.tsx\` with import and usage of \`NavBar\`
+- \`app/page.tsx\` (client component with todo list, using shadcn Button, Input, Card components)
 </example>
 
 <example>
-User: Create a new dashboard page with an API route to fetch user data
+User: Add a dashboard page with an API route to fetch user data
 Assistant: I'll generate the necessary Next.js files for the dashboard and API.
 *Uses Generate Files to create:*
-- \`app/dashboard/page.tsx\` (server component)
+- \`app/dashboard/page.tsx\` (dashboard page using shadcn components)
 - \`app/api/users/route.ts\` (API route handler with GET export)
-- \`lib/users.ts\` (utility functions)
+- \`lib/users.ts\` (utility functions if needed)
 </example>
 
 <example>
-User: Bootstrap a new Next.js app with TypeScript and Tailwind
-Assistant: I'll scaffold a complete Next.js application structure with proper Tailwind setup.
+User: Add a custom navigation component
+Assistant: I'll create a custom NavBar component in the components directory.
 *Uses Generate Files to create:*
-- \`package.json\` (with Next.js, React, TypeScript, Tailwind CSS, @tailwindcss/postcss dependencies)
-- \`tailwind.config.ts\` (Tailwind configuration with content paths)
-- \`postcss.config.mjs\` (PostCSS with @tailwindcss/postcss plugin)
-- \`app/globals.css\` (with @import "tailwindcss" for v4 or @tailwind directives for v3)
-- \`app/layout.tsx\` (root layout that imports "./globals.css")
-- \`app/page.tsx\` (home page using Tailwind classes)
-- \`next.config.ts\` (Next.js configuration - must be .ts format)
-- \`tsconfig.json\` (TypeScript configuration)
+- \`components/NavBar.tsx\` (client component using shadcn Button, using 'use client')
 </example>
 
-**CRITICAL:** \`next.config.ts\` must always be in .ts format. For Tailwind to work, all four config files (tailwind.config.ts, postcss.config.mjs, app/globals.css with directives, app/layout.tsx with import) are REQUIRED.
+<example>
+User: I need a contact form with validation
+Assistant: I'll create a contact form page using shadcn form components.
+*Uses Generate Files to create:*
+- \`app/contact/page.tsx\` (form page using shadcn Input, Button, Textarea components)
+- \`app/api/contact/route.ts\` (API route to handle form submission)
+</example>
 
 ## When NOT to Use This Tool
 
 Avoid using this tool when:
 
-1. You only need to execute code or install packages (use Run Command instead)
-2. You're waiting for a command to finish (use Wait Command)
-3. You want to preview a running server or UI (use Get Sandbox URL)
-4. You haven't created a sandbox yet (use Create Sandbox first)
+1. You need to generate config files - **they already exist in the template!** (next.config.ts, tsconfig.json, tailwind.config.ts, postcss.config.mjs)
+2. You want to create shadcn UI components - **they're already in components/ui/**
+3. You only need to execute code or install packages (use Run Command instead)
+4. You're waiting for a command to finish (use Wait Command)
+5. You want to preview a running server or UI (use Get Sandbox URL)
+6. You haven't created a sandbox yet (use Create Sandbox first)
 
 ## Output Behavior
 
@@ -84,7 +105,17 @@ After generation, the tool will return a list of the files created, including th
 
 ## Summary
 
-Use Generate Files to programmatically create or update files in your Vercel Sandbox. It enables fast iteration, contextual coding, and dynamic file management — all driven by user intent and conversation context.
+Use Generate Files to programmatically create application-specific files in your Vercel Sandbox. The sandbox starts with the shadcn-ui/next-template which includes all configuration files and UI components.
+
+**Focus on generating:**
+- \`app/page.tsx\` and other page routes
+- Custom components in \`components/\` (not components/ui/)
+- API routes in \`app/api/\`
+- Utility functions in \`lib/\`
+
+**Do NOT generate:** Configuration files, layout.tsx, globals.css, or components/ui/ files - these are already in the template!
+
+This tool enables fast iteration, contextual coding, and dynamic file management — all driven by user intent and conversation context.
 `;
 
 export { generateFilesPrompt };

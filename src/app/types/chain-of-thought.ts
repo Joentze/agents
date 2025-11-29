@@ -10,7 +10,7 @@ type ChainOfThoughtStepType =
 
 type SearchStep = {
   query: string;
-  results: { url: string; title: string; text: string }[];
+  results: { url: string; title: string; text: string, sourceUrl:string }[];
 };
 type DateStep = {
   date: string;

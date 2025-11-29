@@ -51,4 +51,4 @@ const useArtifactStore = create<ArtifactStore>((set, get) => ({
   },
 }));
 
-export { useArtifactStore };
+export { useArtifactStore, type ArtifactBody };

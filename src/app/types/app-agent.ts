@@ -20,4 +20,15 @@ type AppBuilderStatusDataPart = {
   previewUrl?: string | undefined;
 };
 
-export type { AppAgentToolParams, AppBuilderStatus, AppBuilderStatusDataPart };
+type AppBuilderLogsDataPart = {
+  level: "log" | "warn" | "error";
+  message: string;
+  timestamp: string;
+};
+
+export type {
+  AppAgentToolParams,
+  AppBuilderStatus,
+  AppBuilderStatusDataPart,
+  AppBuilderLogsDataPart,
+};

@@ -1,6 +1,6 @@
 // extended hook for ai-sdk
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, UIMessagePart, UIDataTypes, UITools } from "ai";
 import { useArtifactStore } from "@/hooks/artifact/use-artifact";
 import { useEffect } from "react";
 import { useChainOfThoughtStore } from "../chain-of-thought/use-chain-of-thought";
@@ -10,35 +10,48 @@ import {
 } from "@/app/types/chain-of-thought";
 import { ArtifactStart } from "@/app/types/artifact";
 import { useAppBuilder } from "../app-builder/use-app-builder";
-import { AppBuilderStatusDataPart } from "@/app/types/app-agent";
+import {
+  AppBuilderLogsDataPart,
+  AppBuilderStatusDataPart,
+} from "@/app/types/app-agent";
+import { createClient } from "@/utils/supabase/client";
+import { Database } from "@/app/types/database.types";
+import { createChat, updateChat } from "@/app/actions/chat-actions";
+import { createMessage } from "@/app/actions/message-actions";
+import { useSidebar } from "../use-sidebar";
+import { createArtifact } from "@/app/actions/artifact-actions";
 
-function useAiChat() {
-  const {
-    initArtifact,
-    currentArtifact,
-    artifacts,
-    addArtifactDelta,
-    setCurrentArtifact,
-  } = useArtifactStore();
-  const {
-    currentPath,
-    sandboxId,
-    status: appBuilderStatus,
-    files,
-    errorMessage,
-    previewUrl,
-    createFile,
-    updateFile,
-    updateStatus,
-  } = useAppBuilder();
-  const { runs, addRun, addStep, updateStep, clearRuns, updateRun } =
-    useChainOfThoughtStore();
+function useAiChat({
+  messages = [],
+  chatId,
+}: {
+  messages?: Database["public"]["Tables"]["message"]["Row"][];
+  chatId?: string;
+}) {
+  // Only subscribe to state values we need in the return
+  const currentArtifact = useArtifactStore((state) => state.currentArtifact);
+  const artifacts = useArtifactStore((state) => state.artifacts);
+  const supabase = createClient();
+  const appBuilderStatus = useAppBuilder((state) => state.status);
+  const errorMessage = useAppBuilder((state) => state.errorMessage);
+  const previewUrl = useAppBuilder((state) => state.previewUrl);
+  const currentPath = useAppBuilder((state) => state.currentPath);
+  const sandboxId = useAppBuilder((state) => state.sandboxId);
+
+  const runs = useChainOfThoughtStore((state) => state.runs);
 
   const aiSdkUseChat = useChat({
+    id: chatId,
+    messages: messages.map(({ id, role, parts, metadata }) => ({
+      id,
+      role: role as "system" | "user" | "assistant",
+      parts: parts as UIMessagePart<UIDataTypes, UITools>[],
+      metadata: metadata as UIDataTypes,
+    })),
     transport: new DefaultChatTransport({
       api: "/api/chat",
     }),
-    onData: ({ data, type, id: artifactRunId }) => {
+    onData: async ({ data, type, id: artifactRunId }) => {
       switch (type) {
         case "data-chain-of-thought-run-start":
           const {
@@ -48,7 +61,7 @@ function useAiChat() {
             status,
             steps,
           } = data as unknown as ChainOfThoughtRun;
-          addRun({
+          useChainOfThoughtStore.getState().addRun({
             id,
             status,
             type: runType,
@@ -66,8 +79,9 @@ function useAiChat() {
             startDatetime,
             endDatetime,
           } = data as unknown as StepUpdateType;
-          if (!Object.keys(runs[runId]?.steps || {}).includes(stepId)) {
-            addStep(runId, {
+          const currentRuns = useChainOfThoughtStore.getState().runs;
+          if (!Object.keys(currentRuns[runId]?.steps || {}).includes(stepId)) {
+            useChainOfThoughtStore.getState().addStep(runId, {
               runId,
               stepId,
               type,
@@ -77,7 +91,7 @@ function useAiChat() {
               endDatetime,
             });
           } else {
-            updateStep(runId, stepId, {
+            useChainOfThoughtStore.getState().updateStep(runId, stepId, {
               runId,
               stepId,
               type,
@@ -92,21 +106,45 @@ function useAiChat() {
           const { id: currentRunId, status: runStatus } =
             data as unknown as ChainOfThoughtRun;
 
-          updateRun(currentRunId, {
+          useChainOfThoughtStore.getState().updateRun(currentRunId, {
             status: runStatus,
           });
 
           break;
         case "data-artifact-start":
           const { title, description, plan } = data as unknown as ArtifactStart;
-          setCurrentArtifact(artifactRunId as string);
-          initArtifact(artifactRunId as string, title, description, plan);
+          useArtifactStore
+            .getState()
+            .setCurrentArtifact(artifactRunId as string);
+          useArtifactStore
+            .getState()
+            .initArtifact(artifactRunId as string, title, description, plan);
+          break;
+        case "data-artifact-end":
+          const {
+            title: artifactTitle,
+            description: artifactDescription,
+            content: artifactContent,
+          } = data as unknown as {
+            title: string;
+            description: string;
+            content: string;
+          };
+          await createArtifact({
+            callId: artifactRunId as string,
+            title: artifactTitle,
+            description: artifactDescription,
+            content: artifactContent,
+            chatId: chatId as string,
+          });
           break;
         case "data-artifact-delta":
           const { delta } = data as unknown as {
             delta: string;
           };
-          addArtifactDelta(artifactRunId as string, delta);
+          useArtifactStore
+            .getState()
+            .addArtifactDelta(artifactRunId as string, delta);
           break;
         case "data-app-builder-status":
           const {
@@ -115,36 +153,80 @@ function useAiChat() {
             errorMessage: builderErrorMessage,
             previewUrl: builderPreviewUrl,
           } = data as unknown as AppBuilderStatusDataPart;
-          updateStatus({
+
+          useAppBuilder.getState().updateStatus({
             status: builderStatus,
             sandboxId: builderSandboxId,
             errorMessage: builderErrorMessage,
             previewUrl: builderPreviewUrl,
           });
           break;
+
         case "data-app-builder-create-file":
           const { path: appBuilderCreateFilePath } = data as unknown as {
             path: string;
           };
-          createFile(appBuilderCreateFilePath, "");
+          useAppBuilder.getState().createFile(appBuilderCreateFilePath, "");
           break;
         case "data-app-builder-file-content-delta":
           const { path, delta: appBuilderFileTextDelta } = data as unknown as {
             path: string;
             delta: string;
           };
-          updateFile(path, appBuilderFileTextDelta);
+          useAppBuilder.getState().updateFile(path, appBuilderFileTextDelta);
+          break;
+        case "data-app-builder-logs":
+          const { level, message, timestamp } =
+            data as unknown as AppBuilderLogsDataPart;
+          useAppBuilder.getState().addLog({ level, message, timestamp });
+          break;
+        case "data-new-chat-title":
+          const { title: newChatTitle } = data as unknown as {
+            title: string;
+          };
+          await createChat({ id: chatId, name: newChatTitle });
           break;
         default:
           break;
       }
     },
+
+    onFinish: async ({ messages }) => {
+      const [user, assistant] = messages
+        .slice(-2)
+        .map(({ role, parts, metadata }) => {
+          return {
+            chatId,
+            role,
+            parts,
+            metadata: metadata ?? {},
+            attachments: [],
+          };
+        });
+
+      // save message to db
+      await Promise.all([
+        createMessage(
+          chatId as string,
+          [
+            user,
+            assistant,
+          ] as Database["public"]["Tables"]["message"]["Insert"][]
+        ),
+        updateChat(chatId as string, {
+          updated_at: new Date().toISOString(),
+        }),
+      ]);
+    },
   });
+
   useEffect(() => {
     return () => {
-      clearRuns();
+      useChainOfThoughtStore.getState().clearRuns();
+      useArtifactStore.getState().clearCurrentArtifact();
+      useAppBuilder.getState().clearApp();
     };
-  }, [clearRuns]);
+  }, []);
   return {
     ...aiSdkUseChat,
     runs,
@@ -153,7 +235,6 @@ function useAiChat() {
     currentPath,
     sandboxId,
     appBuilderStatus,
-    files,
     errorMessage,
     previewUrl,
   };

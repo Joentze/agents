@@ -15,7 +15,6 @@ function ArtifactPlanDisplay({
   artifact,
   isLoading,
 }: ArtifactPlanDisplayProps) {
-  const { setCurrentArtifact } = useArtifactStore();
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -24,7 +23,7 @@ function ArtifactPlanDisplay({
       transition={{ duration: 0.2 }}
       className="p-[1px]"
       onClick={() => {
-        setCurrentArtifact(id);
+        useArtifactStore.getState().setCurrentArtifact(id);
       }}
     >
       <Plan

@@ -30,8 +30,9 @@ export function ArtifactRenderer({
   artifactId,
   defaultContent,
 }: ArtifactRendererProps) {
-  const { artifacts, clearCurrentArtifact } = useArtifactStore();
-  const artifact = artifacts[artifactId];
+  // Subscribe only to the specific artifact we need
+  const artifact = useArtifactStore((state) => state.artifacts[artifactId]);
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [Markdown, TableKit, StarterKit, Callout, Image, Mathematics],
@@ -58,9 +59,9 @@ export function ArtifactRenderer({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10 }}
       transition={{ duration: 0.2 }}
-      className="w-full flex flex-col"
+      className="flex flex-col max-h-screen"
     >
-      <Artifact className="m-4 flex-1">
+      <Artifact className="my-4 ml-0 mr-4 h-screen">
         <ArtifactHeader>
           <div>
             <ArtifactTitle>{artifact.title}</ArtifactTitle>
@@ -77,7 +78,7 @@ export function ArtifactRenderer({
             <ArtifactAction
               icon={X}
               label="Close"
-              onClick={clearCurrentArtifact}
+              onClick={() => useArtifactStore.getState().clearCurrentArtifact()}
             />
           </ArtifactActions>
         </ArtifactHeader>

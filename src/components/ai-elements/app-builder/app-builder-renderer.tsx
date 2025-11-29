@@ -9,21 +9,25 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Code, Eye, X } from "lucide-react";
 import { FileExplorer } from "./file-tree";
-import { File as CodeFile } from "@/hooks/app-builder/use-app-builder";
-import { useEffect, useState } from "react";
+import {
+  File as CodeFile,
+  useAppBuilder,
+} from "@/hooks/app-builder/use-app-builder";
+import { memo, useEffect, useState } from "react";
 import { AppBuilderStatus } from "@/app/types/app-agent";
+import {
+  WebPreviewBody,
+  WebPreviewNavigation,
+  WebPreviewConsole,
+  WebPreviewUrl,
+} from "../web-preview";
+import { WebPreview } from "../web-preview";
+import { Loader } from "../loader";
 
-function AppBuilderRenderer({
-  files,
-  currentPath,
-  status,
-  previewUrl = undefined,
-}: {
-  previewUrl?: string | undefined;
-  files: Record<string, CodeFile>;
-  currentPath: string | undefined;
-  status: AppBuilderStatus;
-}) {
+const AppBuilderRenderer = memo(function renderer() {
+  const status = useAppBuilder((state) => state.status);
+  const logs = useAppBuilder((state) => state.logs);
+  const previewUrl = useAppBuilder((state) => state.previewUrl);
   const [mode, setMode] = useState<"code" | "preview">("code");
   useEffect(() => {
     if (status === "completed" && previewUrl) {
@@ -36,9 +40,9 @@ function AppBuilderRenderer({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10 }}
       transition={{ duration: 0.2 }}
-      className="flex flex-col min-w-2/3 max-w-2/3"
+      className="flex flex-col h-screen"
     >
-      <Artifact className="m-4 flex-1 ">
+      <Artifact className="my-4 ml-0 mr-4 h-screen">
         <ArtifactHeader>
           <div>
             <Tabs
@@ -61,25 +65,27 @@ function AppBuilderRenderer({
           </ArtifactActions>
         </ArtifactHeader>
         <ArtifactContent className="flex flex-row h-full p-0">
-          {mode === "code" && (
-            <FileExplorer
-              className="h-full w-full "
-              currentPath={currentPath}
-              paths={Object.keys(files)}
-              files={files}
-            />
-          )}
+          {mode === "code" && <FileExplorer className="h-full w-full " />}
           {mode === "preview" && (
-            <iframe
-              src={previewUrl}
-              className="h-full w-full"
-              title="Preview"
-            />
+            <WebPreview defaultUrl={previewUrl}>
+              <WebPreviewNavigation>
+                <WebPreviewUrl />
+              </WebPreviewNavigation>
+              <iframe className="size-full" src={previewUrl} title="Preview" />
+              <WebPreviewConsole
+                defaultChecked={true}
+                logs={logs.map((log) => ({
+                  level: log.level,
+                  message: log.message,
+                  timestamp: new Date(log.timestamp),
+                }))}
+              />
+            </WebPreview>
           )}
         </ArtifactContent>
       </Artifact>
     </motion.div>
   );
-}
+});
 
 export default AppBuilderRenderer;

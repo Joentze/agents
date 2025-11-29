@@ -2,11 +2,10 @@ import { AppAgentToolParams } from "@/app/types/app-agent";
 import { generateFilesPrompt as description } from "./generate-files-prompt";
 import {
   convertToModelMessages,
-  ModelMessage,
-  streamText,
   tool,
   UIMessage,
   UIMessageStreamWriter,
+  streamObject,
 } from "ai";
 import z from "zod";
 import { AppRunner } from "../../classes/app-runner";
@@ -138,65 +137,100 @@ async function generateFileContents({
   messages: UIMessage[];
   runner: AppRunner;
 }): Promise<z.infer<typeof fileSchema>[]> {
-  const generated: z.infer<typeof fileSchema>[] = [];
-
-  for (const path of paths) {
-    writer.write({
-      type: "data-app-builder-create-file",
-      data: {
-        path,
+  const { partialObjectStream, object } = streamObject({
+    model: "anthropic/claude-haiku-4.5",
+    system,
+    providerOptions: {
+      openai: {
+        include: ["reasoning.encrypted_content"],
+        reasoningEffort: "low",
+        reasoningSummary: "auto",
       },
-    });
-    const { fullStream } = streamText({
-      model: "vercel/v0-1.5-md",
-      maxOutputTokens: 10000,
-      system,
-      messages: [
-        ...convertToModelMessages(messages),
-        ...generated.map(({ path, content }) => {
-          return {
-            role: "user",
-            content: `The content of the file ${path} has been generated before, it is: ${content}`,
-          } as ModelMessage;
-        }),
-        {
-          role: "user",
-          content: `Generate the content of the following file: ${path}, return only the content of the file, no other text or markdown. Do not include \`\`\` or \`\`\` at the beginning or end of the code nor any other text apart from the code. Code:`,
-        },
-      ],
-    });
-    let fileContent = "";
-    for await (const chunk of fullStream) {
-      switch (chunk.type) {
-        case "text-delta":
-          fileContent += chunk.text;
+    },
+    schema: z.object({
+      files: z.array(fileSchema).describe("The files to generate"),
+    }),
+    messages: [
+      ...convertToModelMessages(messages),
+      {
+        role: "user",
+        content: `Generate the content of the following files: ${paths.map(
+          (path) => `\n - ${path}`
+        )}, return only the content of the files`,
+      },
+    ],
+  });
+  let seenPaths: string[] = [];
+  let lastPath: string | undefined = undefined;
+  let lastContent: string | undefined = undefined;
+  for await (const items of partialObjectStream) {
+    if (!Array.isArray(items?.files)) {
+      continue;
+    }
+    const lastFile = items.files[items.files.length - 1];
+    if (lastFile) {
+      const { path, content } = lastFile;
+
+      // Skip if path is not defined yet
+      if (!path) {
+        continue;
+      }
+
+      // Detected a new file - send create-file event BEFORE any content deltas
+      if (lastPath === undefined || lastPath !== path) {
+        lastPath = path;
+        lastContent = undefined;
+
+        // Send create-file event for the NEW file immediately
+        if (paths.includes(path) && !seenPaths.includes(path)) {
+          seenPaths.push(path);
           writer.write({
-            type: "data-app-builder-file-content-delta",
+            type: "data-app-builder-create-file",
             data: {
-              path,
-              delta: chunk.text,
+              path: path,
             },
+            transient: true,
           });
-          break;
-        default:
-          break;
+        }
+      }
+
+      // Now send content deltas for the current file
+      if (lastContent === undefined && content) {
+        lastContent = content;
+        writer.write({
+          type: "data-app-builder-file-content-delta",
+          data: {
+            path,
+            delta: content,
+          },
+          transient: true,
+        });
+      } else if (lastContent && content) {
+        // Extract only the new part added since last update
+        const delta = content.slice(lastContent.length);
+        writer.write({
+          type: "data-app-builder-file-content-delta",
+          data: {
+            path,
+            delta,
+          },
+          transient: true,
+        });
+        lastContent = content;
       }
     }
-    const sandbox = runner.sandbox;
-    if (!sandbox) {
-      throw new Error("Sandbox not started");
-    }
-    console.log(`Writing file ${path} to sandbox`);
-    console.log(`File content: ${fileContent}`);
-    await sandbox.writeFiles([
-      {
-        path,
-        content: Buffer.from(fileContent, "utf-8"),
-      },
-    ]);
-    generated.push({ path, content: fileContent });
   }
-  return generated;
+  const { files } = await object;
+  const sandbox = runner.sandbox;
+  if (!sandbox) {
+    throw new Error("Sandbox not started");
+  }
+
+  await Promise.all(
+    files.map(({ path, content }) => sandbox.files.write(path, content))
+  );
+
+  return files;
 }
 
 function generateFiles({ runner, messages, writer }: AppAgentToolParams) {
@@ -207,7 +241,6 @@ function generateFiles({ runner, messages, writer }: AppAgentToolParams) {
       paths: z.array(z.string()).describe("The paths to the files to generate"),
     }),
     execute: async ({ paths }) => {
-      console.log(paths);
       const files = await generateFileContents({
         paths,
         messages,
@@ -220,7 +253,7 @@ function generateFiles({ runner, messages, writer }: AppAgentToolParams) {
         .join(", ")}
       Now install the dependencies and start the dev server by running the following command:
       \`\`\`
-      pnpm install
+      bun install
       \`\`\`
       `;
     },

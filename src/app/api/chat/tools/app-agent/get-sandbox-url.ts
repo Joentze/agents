@@ -16,7 +16,7 @@ function getSandboxUrl({
   return tool({
     name: "get-sandbox-url",
     description:
-      "Use this tool once the command `pnpm run dev` has been run and the sandbox is running. Get the URL of the sandbox",
+      "Use this tool once the command `bun --bun run dev --turbo` has been run and the sandbox is running. Get the URL of the sandbox",
     inputSchema: z.object({
       port: z.number().describe("The port of the sandbox").default(3000),
     }),
@@ -29,8 +29,8 @@ function getSandboxUrl({
         }
         await setTimeout(500);
         const sandboxId = runner.getSandboxId() as string;
-        const currentSandbox = await Sandbox.get({ sandboxId });
-        const previewUrl = currentSandbox.domain(3000);
+        const host = runner.sandbox.getHost(3000);
+        const previewUrl = `https://${host}`;
         writer.write({
           type: "data-app-builder-status",
           data: {

@@ -1,12 +1,13 @@
 import { z } from "zod";
-import { tool } from "ai";
+import { tool, UIMessageStreamWriter } from "ai";
 import { AppRunner } from "../../classes/app-runner";
 
 interface RunCommandParams {
   runner: AppRunner;
+  writer: UIMessageStreamWriter;
 }
 
-function runCommand({ runner }: RunCommandParams) {
+function runCommand({ runner, writer }: RunCommandParams) {
   return tool({
     name: "run-command",
     description: "Run a command in the sandbox",
@@ -24,28 +25,52 @@ function runCommand({ runner }: RunCommandParams) {
         if (!sandbox) {
           throw new Error("Sandbox not started");
         }
-        console.log(
-          `Running command ${command} ${args.join(" ")} Wait: ${wait}`
-        );
-        const cmdResult = await sandbox.runCommand({
-          detached: wait ? false : true,
-          cmd: command,
-          args,
-          stderr: process.stderr,
-          stdout: process.stdout,
+        const cmd = command + " " + args.join(" ");
+        writer.write({
+          type: "data-app-builder-logs",
+          data: {
+            logLevel: "log",
+            message: cmd,
+          },
         });
-        if (wait) {
-          const [stdout, stderr] = await Promise.all([
-            cmdResult.stdout(),
-            cmdResult.stderr(),
-          ]);
-          const output = `The output for command ${command} ${args.join(
-            " "
-          )} is: stdout: ${stdout}\nstderr: ${stderr}`;
-          // console.log(output);
-          return output;
+
+        const cmdResult = await sandbox.commands.run(cmd, {
+          background: !wait,
+        });
+        writer.write({
+          type: "data-app-builder-logs",
+          data: {
+            level: "log",
+            message: cmdResult.stdout,
+            timestamp: new Date().toISOString(),
+          },
+        });
+        if (cmdResult.stdout) {
+          writer.write({
+            type: "data-app-builder-logs",
+            data: {
+              level: "log",
+              message: cmdResult.stdout,
+              timestamp: new Date().toISOString(),
+            },
+          });
         }
-        return `Command: ${command} ${args.join(" ")} has been run`;
+        if (cmdResult.stderr) {
+          writer.write({
+            type: "data-app-builder-logs",
+            data: {
+              logLevel: "error",
+              message: cmdResult.stderr,
+              timestamp: new Date().toISOString(),
+            },
+          });
+        }
+        return `
+        stdout:
+        ${cmdResult.stdout}
+        stderr:
+        ${cmdResult.stderr}
+        `;
       } catch (error) {
         console.error(error);
         return `Error running command ${command} ${args.join(" ")}: ${error}`;

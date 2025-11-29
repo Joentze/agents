@@ -1,65 +1,28 @@
 "use client";
 
-import {
-  PromptInput,
-  PromptInputActionAddAttachments,
-  PromptInputActionMenu,
-  PromptInputActionMenuContent,
-  PromptInputActionMenuTrigger,
-  PromptInputAttachment,
-  PromptInputAttachments,
-  PromptInputBody,
-  type PromptInputMessage,
-  PromptInputModelSelect,
-  PromptInputModelSelectContent,
-  PromptInputModelSelectItem,
-  PromptInputModelSelectTrigger,
-  PromptInputModelSelectValue,
-  PromptInputSubmit,
-  PromptInputTextarea,
-  PromptInputFooter,
-  PromptInputTools,
-} from "@/components/ai-elements/prompt-input";
-import { useRef, useState } from "react";
+import { type PromptInputMessage } from "@/components/ai-elements/prompt-input";
+import { useCallback, useRef, useState, memo } from "react";
 import { useAiChat as useChat } from "@/hooks/chat/use-ai-chat";
+import ChatInput from "@/components/ai-elements/chat-input";
+import ChatConversation from "@/components/ai-elements/chat-conversation";
 
-import {
-  Conversation,
-  ConversationContent,
-  ConversationScrollButton,
-} from "@/components/ai-elements/conversation";
-import { Message, MessageContent } from "@/components/ai-elements/message";
-import { Response } from "@/components/ai-elements/response";
-
-import { ModeToggle } from "@/components/ui/theme-button";
-import ChainOfThoughtDisplay from "@/components/ai-elements/chain-of-thought-display";
-import {
-  Source,
-  Sources,
-  SourcesContent,
-  SourcesTrigger,
-} from "@/components/ai-elements/sources";
-import { ArtifactPlanDisplay } from "@/components/ai-elements/artifact/artifact-plan-display";
-import { ArtifactInput } from "./types/artifact";
-import { ArtifactRenderer } from "@/components/ai-elements/artifact/artifact-renderer";
 import { cn } from "@/lib/utils";
-import { motion } from "motion/react";
-import {
-  Artifact,
-  ArtifactAction,
-  ArtifactActions,
-  ArtifactDescription,
-  ArtifactHeader,
-  ArtifactTitle,
-  ArtifactContent,
-} from "@/components/ai-elements/artifact";
-import { Code, Eye, X } from "lucide-react";
-import { FileExplorer } from "@/components/ai-elements/app-builder/file-tree";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import AppBuilderRenderer from "@/components/ai-elements/app-builder/app-builder-renderer";
 
+import { useAppBuilder } from "@/hooks/app-builder/use-app-builder";
+import { useArtifactStore } from "@/hooks/artifact/use-artifact";
+import { UIMessage } from "ai";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useSidebar } from "@/hooks/use-sidebar";
+import { createClient } from "@/utils/supabase/client";
+import { useRouter } from "next/navigation";
+import { useTempStore } from "@/hooks/chat/use-temp-store";
 const models = [
   // { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", provider: "openai" },
+  {
+    id: "moonshotai/kimi-k2-thinking",
+    name: "Kimi K2 Thinking",
+    provider: "moonshotai",
+  },
   { id: "openai/gpt-4.1-nano", name: "GPT-4.1 Nano", provider: "openai" },
   {
     id: "anthropic/claude-sonnet-4-20250514",
@@ -68,214 +31,170 @@ const models = [
   },
 ];
 
+// Memoized chat section to prevent unnecessary re-renders
+const ChatSection = memo(
+  ({
+    messages,
+    status,
+    text,
+    onTextChange,
+    model,
+    onModelChange,
+    onSubmit,
+    textareaRef,
+    hasArtifact,
+    hasAppBuilder,
+  }: {
+    messages: UIMessage[];
+    status: any;
+    text: string;
+    onTextChange: (value: string) => void;
+    model: string;
+    onModelChange: (value: string) => void;
+    onSubmit: (message: PromptInputMessage) => void;
+    textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+    hasArtifact: boolean;
+    hasAppBuilder: boolean;
+  }) => {
+    return (
+      <div
+        className={cn(
+          "h-screen flex flex-col p-4 mx-auto",
+          hasArtifact ? "w-full" : "w-full md:w-2/3",
+          hasAppBuilder ? "w-full" : "w-full md:w-2/3"
+        )}
+      >
+        {/* <ChatConversation
+          messages={messages}
+          status={status}
+          className="flex-1 overflow-auto"
+        /> */}
+
+        <ChatInput
+          className="my-auto"
+          text={text}
+          onTextChange={onTextChange}
+          model={model}
+          onModelChange={onModelChange}
+          status={status}
+          onSubmit={onSubmit}
+          textareaRef={textareaRef}
+          models={models}
+        />
+      </div>
+    );
+  },
+  (prevProps, nextProps) => {
+    return (
+      prevProps.messages === nextProps.messages &&
+      prevProps.status === nextProps.status &&
+      prevProps.text === nextProps.text &&
+      prevProps.model === nextProps.model &&
+      prevProps.hasArtifact === nextProps.hasArtifact &&
+      prevProps.hasAppBuilder === nextProps.hasAppBuilder
+    );
+  }
+);
+
 const InputDemo = () => {
+  const router = useRouter();
+  const { open, setOpen } = useSidebar();
   const [text, setText] = useState<string>("");
   const [model, setModel] = useState<string>(models[0].id);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { messages, status, sendMessage } = useChat({});
+  const supabase = createClient();
+  // Subscribe to these separately to avoid unnecessary re-renders
+  const currentArtifact = useArtifactStore((state) => state.currentArtifact);
 
-  const {
-    messages,
-    status,
-    sendMessage,
-    currentArtifact,
-    artifacts,
-    appBuilderStatus,
-    currentPath,
-    files,
-    errorMessage,
-    previewUrl,
-  } = useChat();
+  const appBuilderStatus = useAppBuilder((state) => state.status);
 
-  const handleSubmit = (message: PromptInputMessage) => {
-    const hasText = Boolean(message.text);
-    const hasAttachments = Boolean(message.files?.length);
+  const handleTextChange = useCallback((value: string) => {
+    setText(value);
+  }, []);
 
-    if (!(hasText || hasAttachments)) {
-      return;
-    }
+  const handleModelChange = useCallback((value: string) => {
+    setModel(value);
+  }, []);
 
-    const tabularFiles = message.files?.filter(
-      (file) =>
-        file.mediaType === "text/csv" ||
-        file.mediaType === "application/vnd.ms-excel" ||
-        file.mediaType ===
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
+  const handleFirstSubmit = useCallback(
+    async (message: PromptInputMessage) => {
+      const hasText = Boolean(message.text);
+      const hasAttachments = Boolean(message.files?.length);
 
-    const nonTabularFiles = message.files?.filter(
-      (file) =>
-        file.mediaType !== "text/csv" &&
-        file.mediaType !== "application/vnd.ms-excel" &&
-        file.mediaType !==
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-
-    sendMessage(
-      {
-        text: message.text || "Sent with attachments",
-        files: nonTabularFiles,
-        metadata: { tabularFiles },
-      },
-      {
-        body: {
-          model: model,
-        },
+      if (!(hasText || hasAttachments)) {
+        return;
       }
-    );
-    setText("");
-  };
+
+      const tabularFiles = message.files?.filter(
+        (file) =>
+          file.mediaType === "text/csv" ||
+          file.mediaType === "application/vnd.ms-excel" ||
+          file.mediaType ===
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+
+      const nonTabularFiles = message.files?.filter(
+        (file) =>
+          file.mediaType !== "text/csv" &&
+          file.mediaType !== "application/vnd.ms-excel" &&
+          file.mediaType !==
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      const chatId = crypto.randomUUID();
+
+      const firstMessage = {
+        message: {
+          text: message.text || "Sent with attachments",
+          files: nonTabularFiles,
+          metadata: { tabularFiles, first: true },
+        },
+        chatRequestOptions: {
+          body: {
+            model: model,
+          },
+        },
+      };
+      useTempStore.getState().setKey(chatId, firstMessage);
+
+      router.push(`/chat/${chatId}`);
+    },
+    [model, sendMessage]
+  );
 
   return (
     <>
-      <div className="flex flex-row h-screen w-full">
-        <div
-          className={cn(
-            "h-screen flex flex-col p-4 mx-auto",
-            currentArtifact ? "w-full" : "w-full md:w-2/3",
-            appBuilderStatus !== "not-started" ? "w-full" : "w-full md:w-2/3"
-          )}
-        >
-          <ModeToggle />
-          <Conversation className="flex-1 overflow-auto">
-            <ConversationContent>
-              {messages.map((message, index) => (
-                <Message from={message.role} key={message.id}>
-                  <MessageContent variant="flat">
-                    {message.parts.map((part, i) => {
-                      switch (part.type) {
-                        case "text":
-                          return (
-                            <Response key={`${message.id}-${i}`}>
-                              {part.text}
-                            </Response>
-                          );
-                        case "tool-agenticSearch":
-                        case "tool-agenticCode":
-                        case "tool-agenticDataAnalysis":
-                        case "tool-agenticArtifact":
-                        case "tool-agenticFileCreator":
-                          return (
-                            <>
-                              <ChainOfThoughtDisplay runId={part.toolCallId} />
-                              {part.type === "tool-agenticArtifact" &&
-                                part.output && (
-                                  <ArtifactPlanDisplay
-                                    id={part.toolCallId}
-                                    artifact={part.input as ArtifactInput}
-                                    isLoading={part.state === "input-streaming"}
-                                  />
-                                )}
-                            </>
-                          );
-                        default:
-                          return null;
-                      }
-                    })}
-                    {message.role === "assistant" &&
-                      index === messages.length - 1 &&
-                      status === "ready" &&
-                      message.parts.some(
-                        (part) => part.type === "source-url"
-                      ) && (
-                        <Sources className="mt-2">
-                          <SourcesTrigger
-                            className="text-blue-400 hover:text-blue-700"
-                            count={
-                              message.parts.filter(
-                                (part) => part.type === "source-url"
-                              ).length
-                            }
-                          />
-                          {message.parts.map((part, i) => {
-                            switch (part.type) {
-                              case "source-url":
-                                return (
-                                  <SourcesContent key={`${message.id}-${i}`}>
-                                    <Source
-                                      key={`${message.id}-${i}`}
-                                      href={part.url}
-                                      title={part.url}
-                                    />
-                                  </SourcesContent>
-                                );
-                            }
-                          })}
-                        </Sources>
-                      )}
-                  </MessageContent>
-                </Message>
-              ))}
-            </ConversationContent>
-            <ConversationScrollButton />
-          </Conversation>
-
-          <PromptInput
-            onSubmit={handleSubmit}
-            globalDrop
-            multiple
-            accept="text/csv,application/pdf,image/jpeg,image/png"
-            maxFiles={10}
-            maxFileSize={5 * 1024 * 1024}
-          >
-            <PromptInputBody className="pt-2">
-              <PromptInputAttachments>
-                {(attachment) => <PromptInputAttachment data={attachment} />}
-              </PromptInputAttachments>
-              <PromptInputTextarea
-                onChange={(e) => setText(e.target.value)}
-                ref={textareaRef}
-                value={text}
-              />
-            </PromptInputBody>
-            <PromptInputFooter>
-              <PromptInputTools>
-                <PromptInputActionMenu>
-                  <PromptInputActionMenuTrigger />
-                  <PromptInputActionMenuContent>
-                    <PromptInputActionAddAttachments />
-                  </PromptInputActionMenuContent>
-                </PromptInputActionMenu>
-
-                <PromptInputModelSelect
-                  onValueChange={(value) => {
-                    setModel(value);
-                  }}
-                  value={model}
-                >
-                  <PromptInputModelSelectTrigger>
-                    <PromptInputModelSelectValue />
-                  </PromptInputModelSelectTrigger>
-                  <PromptInputModelSelectContent>
-                    {models.map((model) => (
-                      <PromptInputModelSelectItem
-                        key={model.id}
-                        value={model.id}
-                      >
-                        {model.name}
-                      </PromptInputModelSelectItem>
-                    ))}
-                  </PromptInputModelSelectContent>
-                </PromptInputModelSelect>
-              </PromptInputTools>
-              <PromptInputSubmit
-                disabled={!text && !status}
-                status={status}
-                className="border border-muted-foreground ring-2 ring-border/50"
-              />
-            </PromptInputFooter>
-          </PromptInput>
-        </div>
-        {currentArtifact && artifacts[currentArtifact] && (
-          <ArtifactRenderer artifactId={currentArtifact} />
-        )}
-        {appBuilderStatus !== "not-started" && (
-          <AppBuilderRenderer
-            currentPath={currentPath}
-            files={files}
-            status={appBuilderStatus}
-            previewUrl={previewUrl}
+      <div className="flex flex-row h-screen w-full ">
+        {/* <Dithering
+          colorFront="#737373"
+          colorBack="#0a0a0a"
+          shape="wave"
+          type="4x4"
+          size={1.3}
+          speed={0.24}
+          scale={0.8}
+          offsetX={-1}
+          offsetY={0.2}
+          className="absolute top-0 left-0 w-full h-full"
+        /> */}
+        {!open && (
+          <SidebarTrigger
+            onClick={() => setOpen(!open)}
+            className="m-2 absolute top-0 left-0 z-10"
           />
         )}
+        <ChatSection
+          messages={messages}
+          status={status}
+          text={text}
+          onTextChange={handleTextChange}
+          model={model}
+          onModelChange={handleModelChange}
+          onSubmit={handleFirstSubmit}
+          textareaRef={textareaRef}
+          hasArtifact={!!currentArtifact}
+          hasAppBuilder={appBuilderStatus !== "not-started"}
+        />
       </div>
     </>
   );

@@ -81,7 +81,7 @@ const chainOfThoughtDisplaySteps: ChainOfThoughtDisplaySteps = {
     icon: TerminalSquare,
   },
   date: {
-  icon: Calendar,
+    icon: Calendar,
   },
   writing: {
     icon: Pencil,
@@ -129,7 +129,7 @@ function SearchStepDisplay({ step }: { step: SearchStep }) {
     >
       <ChainOfThoughtSearchResults>
         <TooltipProvider>
-          {step.results.map(({ url, title }) => (
+          {step.results.map(({ url, title, sourceUrl }) => (
             <Tooltip key={url}>
               <TooltipTrigger asChild>
                 <ChainOfThoughtSearchResult
@@ -142,12 +142,12 @@ function SearchStepDisplay({ step }: { step: SearchStep }) {
                     alt=""
                     className="size-4"
                     height={16}
-                    src={`https://img.logo.dev/${new URL(url).hostname}?token=${
-                      process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN
-                    }`}
+                    src={`https://img.logo.dev/${
+                      new URL(sourceUrl || url).hostname
+                    }?token=${process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN}`}
                     width={16}
                   />
-                  {new URL(url).hostname}
+                  {new URL(sourceUrl || url).hostname}
                 </ChainOfThoughtSearchResult>
               </TooltipTrigger>
               <TooltipContent>
@@ -162,8 +162,8 @@ function SearchStepDisplay({ step }: { step: SearchStep }) {
 }
 
 function ChainOfThoughtDisplay({ runId }: ChainOfThoughtDisplayProps) {
-  const { runs } = useChainOfThoughtStore();
-  const run = runs[runId];
+  // Subscribe only to the specific run we need, not all runs
+  const run = useChainOfThoughtStore((state) => state.runs[runId]);
   if (!run) {
     return null;
   }
@@ -274,11 +274,4 @@ function ChainOfThoughtDisplay({ runId }: ChainOfThoughtDisplayProps) {
   );
 }
 
-export default memo(ChainOfThoughtDisplay, (prevProps, nextProps) => {
-  // Get runs from store to compare
-  const prevRun = useChainOfThoughtStore.getState().runs[prevProps.runId];
-  const nextRun = useChainOfThoughtStore.getState().runs[nextProps.runId];
-
-  // Return true if props are equal (don't re-render), false if different (re-render)
-  return prevRun === nextRun;
-});
+export default memo(ChainOfThoughtDisplay);

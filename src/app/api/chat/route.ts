@@ -6,14 +6,13 @@ import {
   createUIMessageStreamResponse,
   stepCountIs,
   FileUIPart,
+  generateObject,
 } from "ai";
 import { search2Tool as agenticSearch } from "@/app/api/chat/tools/search";
 import { artifactTool } from "./tools/artifact";
 import { dataAnalysisTool } from "./tools/data-analysis";
-import { fileCreatorTool } from "./tools/file-creator";
-import { generateFiles } from "./tools/app-agent/generate-files";
-import { AppRunner } from "./classes/app-runner";
 import { appBuilderTool } from "./tools/app-builder";
+import { z } from "zod";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 120;
@@ -42,9 +41,32 @@ export async function POST(req: Request) {
       : "";
   const stream = createUIMessageStream({
     async execute({ writer }) {
+      // create title
+      if (messages.length === 1) {
+        generateObject({
+          model: "openai/gpt-5-nano",
+          schema: z.object({
+            title: z.string(),
+          }),
+          system: `Generate a simple title for the chat based on the conversation history`,
+          messages: convertToModelMessages(messages),
+        })
+          .then(({ object: { title } }) => {
+            writer.write({
+              type: "data-new-chat-title",
+              data: {
+                title: title,
+              },
+            });
+          })
+          .catch((error) => {
+            console.error("Error generating chat title:", error);
+          });
+      }
+
       // Merge another stream from streamText
       const result = streamText({
-        model,
+        model: "anthropic/claude-4.5-haiku",
         messages: convertToModelMessages(messages),
         stopWhen: stepCountIs(10),
         system: `You are a helpful assistant. Follow these instructions:
@@ -65,23 +87,31 @@ export async function POST(req: Request) {
               url: file.url,
             })),
           }),
-          agenticFileCreator: fileCreatorTool({ writer }),
-          generateFiles: generateFiles({
-            runner: new AppRunner({ runId: "xxx", writer }),
-            writer,
-            messages,
-          }),
+          // agenticFileCreator: fileCreatorTool({ writer }),
+          // generateFiles: generateFiles({
+          //   runner: new AppRunner({ runId: "xxx", writer }),
+          //   writer,
+          //   messages,
+          // }),
           appBuilder: appBuilderTool({ writer, messages }),
         },
         providerOptions: {
           openai: {
             parallelToolCalls: false,
+            reasoningSummary: "auto",
+            reasoningEffort: "low",
           },
+        },
+        onFinish: async () => {
+          // if first message
         },
       });
 
-      writer.merge(result.toUIMessageStream());
+      writer.merge(
+        result.toUIMessageStream({ sendSources: true, sendReasoning: true })
+      );
     },
+
     onFinish: ({ messages }) => {
       //   console.log("Stream finished with messages:", messages);
     },

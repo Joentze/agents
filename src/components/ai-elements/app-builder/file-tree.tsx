@@ -5,6 +5,7 @@ import {
   ChevronDownIcon,
   FolderIcon,
   FileIcon,
+  FolderOpenIcon,
 } from "lucide-react";
 import {
   SiReact,
@@ -28,151 +29,114 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { File as CodeFile } from "@/hooks/app-builder/use-app-builder";
-
-// Wrapper component to fetch and display file content from sandbox
-const SandboxFileContent = memo(function SandboxFileContent({
-  node,
-}: {
-  node: FileNode;
-}) {
-  return (
-    <FileContent
-      code={node.content ?? ""}
-      filename={node.path}
-      isLoading={!node.content}
-    />
-  );
-});
+import {
+  File as CodeFile,
+  useAppBuilder,
+} from "@/hooks/app-builder/use-app-builder";
 
 interface Props {
   className: string;
   disabled?: boolean;
   paths: string[];
   files: Record<string, CodeFile>;
-  currentPath: string | undefined;
 }
 
-export const FileExplorer = memo(
-  function FileExplorer({
-    className,
-    disabled,
-    paths,
-    files,
-    currentPath,
-  }: Props) {
-    const fileTree = useMemo(() => buildFileTree(paths, files), [paths, files]);
+export const FileExplorer = memo(function FileExplorer({
+  className,
+  disabled,
+}: {
+  className: string;
+  disabled?: boolean;
+}) {
+  // Selective subscription - only re-render when these specific values change
+  const paths = useAppBuilder((state) => state.paths);
+  const fileTree = useMemo(() => buildFileTree(paths), [paths]);
+  const [selected, setSelected] = useState<FileNode | null>(null);
+  const [fs, setFs] = useState<FileNode[]>(fileTree);
 
-    const [selected, setSelected] = useState<FileNode | null>(null);
-    const [fs, setFs] = useState<FileNode[]>(fileTree);
+  useEffect(() => {
+    setFs(fileTree);
+  }, [paths]);
 
-    useEffect(() => {
-      setFs(fileTree);
-    }, [fileTree]);
-
-    const toggleFolder = useCallback((path: string) => {
-      setFs((prev) => {
-        const updateNode = (nodes: FileNode[]): FileNode[] =>
-          nodes.map((node) => {
-            if (node.path === path && node.type === "folder") {
-              return { ...node, expanded: !node.expanded };
-            } else if (node.children) {
-              return { ...node, children: updateNode(node.children) };
-            } else {
-              return node;
-            }
-          });
-        return updateNode(prev);
-      });
-    }, []);
-
-    const selectFile = useCallback((node: FileNode) => {
-      if (node.type === "file") {
-        setSelected(node);
-      }
-    }, []);
-
-    // Recursively search for a file node by path
-    const findFileByPath = useCallback(
-      (nodes: FileNode[], targetPath: string): FileNode | null => {
-        for (const node of nodes) {
-          // Check if current node matches (handle both full path and relative path)
-          if (node.name === targetPath || targetPath.endsWith(node.name)) {
+  const toggleFolder = useCallback((path: string) => {
+    setFs((prev) => {
+      const updateNode = (nodes: FileNode[]): FileNode[] =>
+        nodes.map((node) => {
+          if (node.path === path && node.type === "folder") {
+            return { ...node, expanded: !node.expanded };
+          } else if (node.children) {
+            return { ...node, children: updateNode(node.children) };
+          } else {
             return node;
           }
-          // Recursively search in children if it's a folder
-          if (node.type === "folder" && node.children) {
-            const found = findFileByPath(node.children, targetPath);
-            if (found) {
-              return found;
-            }
+        });
+      return updateNode(prev);
+    });
+  }, []);
+
+  const selectFile = useCallback((node: FileNode) => {
+    if (node.type === "file") {
+      setSelected(node);
+    }
+  }, []);
+
+  // Recursively search for a file node by path
+  const findFileByPath = useCallback(
+    (nodes: FileNode[], targetPath: string): FileNode | null => {
+      for (const node of nodes) {
+        // Check if current node matches (handle both full path and relative path)
+        if (node.name === targetPath || targetPath.endsWith(node.name)) {
+          return node;
+        }
+        // Recursively search in children if it's a folder
+        if (node.type === "folder" && node.children) {
+          const found = findFileByPath(node.children, targetPath);
+          if (found) {
+            return found;
           }
         }
-        return null;
-      },
-      []
-    );
-
-    useEffect(() => {
-      console.log("fileTree", fileTree);
-      console.log("currentPath", currentPath);
-      if (currentPath) {
-        const currentFile = findFileByPath(fileTree, currentPath);
-        console.log("currentFile", currentFile);
-        if (currentFile && currentFile.type === "file") {
-          setSelected(currentFile);
-        }
       }
-    }, [currentPath, fileTree, findFileByPath]);
+      return null;
+    },
+    []
+  );
 
-    const renderFileTree = useCallback(
-      (nodes: FileNode[], depth = 0) => {
-        return nodes.map((node) => (
-          <FileTreeNode
-            key={node.path}
-            node={node}
-            depth={depth}
-            selected={selected}
-            onToggleFolder={toggleFolder}
-            onSelectFile={selectFile}
-            renderFileTree={renderFileTree}
-          />
-        ));
-      },
-      [selected, toggleFolder, selectFile]
-    );
+  const renderFileTree = useCallback(
+    (nodes: FileNode[], depth = 0) => {
+      return nodes.map((node) => (
+        <FileTreeNode
+          key={node.path}
+          node={node}
+          depth={depth}
+          selected={selected}
+          onToggleFolder={toggleFolder}
+          onSelectFile={selectFile}
+          renderFileTree={renderFileTree}
+        />
+      ));
+    },
+    [selected, toggleFolder, selectFile]
+  );
 
-    return (
-      <div className={cn("", className)}>
-        <ResizablePanelGroup direction="horizontal" className="text-sm">
-          <ResizablePanel defaultSize={25} minSize={15} className="pt-1">
-            <ScrollArea className="">
-              <div>{renderFileTree(fs)}</div>
-            </ScrollArea>
-          </ResizablePanel>
+  return (
+    <div className={cn("", className)}>
+      <ResizablePanelGroup direction="horizontal" className="text-sm">
+        <ResizablePanel defaultSize={25} minSize={15} className="pt-1">
+          <ScrollArea className="">
+            <div>{renderFileTree(fs)}</div>
+          </ScrollArea>
+        </ResizablePanel>
 
-          <ResizableHandle />
-          <ResizablePanel defaultSize={75}>
-            {selected && !disabled && (
-              <>
-                <div className="h-full overflow-auto">
-                  <FileContent
-                    code={selected.content ?? ""}
-                    filename={selected.path}
-                    isLoading={false}
-                  />
-                </div>
-              </>
-            )}
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </div>
-    );
-  },
-  (nextProps, prevProps) => {
-    return nextProps.paths === prevProps.paths;
-  }
-);
+        <ResizableHandle />
+        <ResizablePanel defaultSize={75}>
+          <div className="h-full overflow-auto">
+            <FileContent />
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
+  );
+});
 
 const extensionToIcon = {
   ts: <SiTypescript className="size-4 mr-2" color="#3178C6" />,
@@ -204,7 +168,7 @@ const FileTreeNode = memo(function FileTreeNode({
     if (node.type === "folder") {
       onToggleFolder(node.path);
     } else {
-      onSelectFile(node);
+      useAppBuilder.setState({ currentPath: node.fullPath });
     }
   }, [node, onToggleFolder, onSelectFile]);
   const extension = node.path.split(".").pop();
@@ -225,7 +189,11 @@ const FileTreeNode = memo(function FileTreeNode({
             ) : (
               <ChevronRightIcon className="w-4 mr-1" />
             )}
-            <FolderIcon className="w-4 mr-2" />
+            {node.expanded ? (
+              <FolderOpenIcon className="w-4 mr-2" />
+            ) : (
+              <FolderIcon className="w-4 mr-2" />
+            )}
           </>
         ) : (
           <>

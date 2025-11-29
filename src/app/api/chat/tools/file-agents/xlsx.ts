@@ -51,7 +51,7 @@ class XLSXAgent extends FileSandboxAgent {
         return text;
       },
     });
-    console.log(excelPlan);
+
     // Second step: Create the Excel file
     const { text } = await generateText({
       model: this.model,
