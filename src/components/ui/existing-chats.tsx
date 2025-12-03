@@ -19,8 +19,9 @@ import { Database } from "@/app/types/database.types";
 import { useParams, useRouter } from "next/navigation";
 import { MoreHorizontal, Trash2 } from "lucide-react";
 import { Input } from "./input";
-import { useState, useRef } from "react";
-import { deleteChat, updateChat } from "@/app/actions/chat-actions";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { deleteChat, updateChat, getChats } from "@/app/actions/chat-actions";
+import { Loader } from "@/components/ai-elements/loader";
 
 function ChatItem({
   id,
@@ -128,11 +129,65 @@ export default function ExistingChats({
   chats: Database["public"]["Tables"]["chat"]["Row"][];
 }) {
   const { chatId } = useParams<{ chatId: string }>();
+  const [localChats, setLocalChats] = useState(chats);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(chats.length >= 30);
+  const observerTarget = useRef<HTMLDivElement>(null);
+  const limit = 30;
+
+  useEffect(() => {
+    setLocalChats(chats);
+    setHasMore(chats.length >= limit);
+  }, [chats]);
+
+  const loadMore = useCallback(async () => {
+    if (isLoading || !hasMore) return;
+    setIsLoading(true);
+    try {
+      const currentLength = localChats.length;
+      const newChats = await getChats(currentLength, limit);
+
+      if (newChats.length < limit) {
+        setHasMore(false);
+      }
+
+      if (newChats.length > 0) {
+        setLocalChats((prev) => {
+          // Create a Set of existing IDs to avoid duplicates
+          const existingIds = new Set(prev.map((c) => c.id));
+          const uniqueNewChats = newChats.filter((c) => !existingIds.has(c.id));
+          return [...prev, ...uniqueNewChats];
+        });
+      }
+    } catch (error) {
+      console.error("Error loading more chats:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isLoading, hasMore, localChats.length]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => observer.disconnect();
+  }, [loadMore]);
+
   return (
     <SidebarGroup className="-mt-1">
       <SidebarGroupLabel>Recent Chats</SidebarGroupLabel>
       <SidebarMenu className="overflow-y-auto">
-        {chats?.map(({ id, name }) => (
+        {localChats.map(({ id, name }) => (
           <ChatItem
             key={id}
             id={id}
@@ -140,6 +195,14 @@ export default function ExistingChats({
             isActive={chatId !== undefined && chatId === id}
           />
         ))}
+        {hasMore && (
+          <div
+            ref={observerTarget}
+            className="h-8 w-full flex justify-center items-center p-2"
+          >
+            {isLoading && <Loader size={16} className="opacity-50" />}
+          </div>
+        )}
       </SidebarMenu>
     </SidebarGroup>
   );

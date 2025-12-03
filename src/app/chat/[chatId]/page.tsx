@@ -18,6 +18,8 @@ import { useParams } from "next/navigation";
 import { useTempStore } from "@/hooks/chat/use-temp-store";
 import { useChatData } from "./chat-data-provider";
 import { Database } from "@/app/types/database.types";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { McpTool } from "@/stores/use-mcps";
 const models = [
   // { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", provider: "openai" },
   {
@@ -36,6 +38,7 @@ const models = [
 // Memoized chat section to prevent unnecessary re-renders
 const ChatSection = memo(
   ({
+    mcpLoading,
     messages,
     status,
     text,
@@ -44,9 +47,11 @@ const ChatSection = memo(
     onModelChange,
     onSubmit,
     textareaRef,
+    mcpTools,
     hasArtifact,
     hasAppBuilder,
   }: {
+    mcpLoading: boolean;
     messages: UIMessage[];
     status: any;
     text: string;
@@ -55,6 +60,7 @@ const ChatSection = memo(
     onModelChange: (value: string) => void;
     onSubmit: (message: PromptInputMessage) => void;
     textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+    mcpTools: Record<string, McpTool>;
     hasArtifact: boolean;
     hasAppBuilder: boolean;
   }) => {
@@ -63,10 +69,12 @@ const ChatSection = memo(
         <ChatConversation
           messages={messages}
           status={status}
-          className="flex-1 overflow-auto"
+          className="flex-1 min-h-0"
         />
 
         <ChatInput
+          mcpTools={mcpTools}
+          mcpLoading={mcpLoading}
           text={text}
           onTextChange={onTextChange}
           model={model}
@@ -92,6 +100,7 @@ const ChatSection = memo(
 );
 
 const InputDemo = () => {
+  const isMobile = useIsMobile();
   const { initialMessages, initialArtifacts } = useChatData();
   const { chatId } = useParams();
   if (!chatId) {
@@ -104,11 +113,12 @@ const InputDemo = () => {
   const [model, setModel] = useState<string>(models[0].id);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasInitialMessageBeenSent = useRef(false);
-  const { messages, status, sendMessage } = useChat({
+  const { messages, status, sendMessage, mcpTools, mcpLoading } = useChat({
     messages: initialMessages ?? [],
     chatId: chatId as string,
   });
   useEffect(() => {
+    console.log("initialArtifacts", initialArtifacts);
     if (initialArtifacts) {
       const artifacts = initialArtifacts.reduce(
         (
@@ -125,6 +135,7 @@ const InputDemo = () => {
         },
         {} as Record<string, ArtifactBody>
       );
+      console.log("artifacts", artifacts);
       useArtifactStore.setState({ artifacts });
     }
   }, [initialArtifacts]);
@@ -189,6 +200,8 @@ const InputDemo = () => {
         {
           body: {
             model: model,
+            mcpTools: Object.values(mcpTools),
+            chatId,
           },
         }
       );
@@ -200,7 +213,7 @@ const InputDemo = () => {
 
   return (
     <>
-      {!open && (
+      {(!open || isMobile) && (
         <SidebarTrigger
           onClick={() => setOpen(!open)}
           className="m-2 absolute top-0 left-0 z-10"
@@ -218,10 +231,12 @@ const InputDemo = () => {
           className={cn(
             currentArtifact || appBuilderStatus !== "not-started"
               ? "flex-1 h-screen min-w-0"
-              : "w-2/3 mx-auto"
+              : "md:w-2/3 w-full mx-auto"
           )}
         >
           <ChatSection
+            mcpLoading={mcpLoading}
+            mcpTools={mcpTools}
             messages={messages}
             status={status}
             text={text}

@@ -1,3 +1,4 @@
+import { createArtifact } from "@/app/actions/artifact-actions";
 import {
   ChainOfThoughtRun,
   ComponentStep,
@@ -8,6 +9,7 @@ import { randomUUID } from "crypto";
 import z from "zod";
 
 type ArtifactToolParams = {
+  chatId: string;
   writer: UIMessageStreamWriter;
 };
 
@@ -35,7 +37,7 @@ const flashCardTool = tool({
   },
 });
 
-const artifactTool = ({ writer }: ArtifactToolParams) =>
+const artifactTool = ({ chatId, writer }: ArtifactToolParams) =>
   tool({
     name: "artifact",
     description: `
@@ -88,7 +90,7 @@ const artifactTool = ({ writer }: ArtifactToolParams) =>
       });
 
       const { fullStream } = streamText({
-        model: "openai/gpt-4.1-nano",
+        model: "openai/gpt-5-nano",
         tools: {
           flashCardTool,
         },
@@ -185,7 +187,13 @@ ${JSON.stringify(chunk.input)}
           endDatetime: Date.now(),
         } as ChainOfThoughtRun,
       });
-
+      await createArtifact({
+        callId: runId,
+        title,
+        description,
+        content,
+        chatId,
+      });
       return content;
     },
   });

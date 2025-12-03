@@ -10,11 +10,6 @@ import {
   PromptInputAttachments,
   PromptInputBody,
   type PromptInputMessage,
-  PromptInputModelSelect,
-  PromptInputModelSelectContent,
-  PromptInputModelSelectItem,
-  PromptInputModelSelectTrigger,
-  PromptInputModelSelectValue,
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputFooter,
@@ -22,8 +17,8 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { memo, type RefObject, type ChangeEvent } from "react";
 import type { ChatStatus } from "ai";
-import { Button } from "../ui/button";
-import { Server } from "lucide-react";
+
+import { ServerIcon, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -34,6 +29,10 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 import ListMcps from "../ui/mcp/list-mcps";
+import { DropdownMenuItem } from "../ui/dropdown-menu";
+import { McpTool } from "@/stores/use-mcps";
+import { Badge } from "../ui/badge";
+import { Loader } from "./loader";
 
 interface ChatInputProps {
   text: string;
@@ -45,9 +44,13 @@ interface ChatInputProps {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   models: Array<{ id: string; name: string; provider: string }>;
   className?: string;
+  mcpTools: Record<string, McpTool>;
+  mcpLoading: boolean;
 }
 
 const ChatInput = memo(function ChatInput({
+  mcpLoading,
+  mcpTools,
   text,
   onTextChange,
   status,
@@ -84,13 +87,14 @@ const ChatInput = memo(function ChatInput({
               <PromptInputActionMenuTrigger />
               <PromptInputActionMenuContent>
                 <PromptInputActionAddAttachments />
+                <DialogTrigger asChild>
+                  <DropdownMenuItem>
+                    <ServerIcon className="size-4 mr-2" />
+                    <span>Add MCP Server</span>
+                  </DropdownMenuItem>
+                </DialogTrigger>
               </PromptInputActionMenuContent>
             </PromptInputActionMenu>
-            <DialogTrigger>
-              <Button size="icon" variant="ghost">
-                <Server />
-              </Button>
-            </DialogTrigger>
 
             {/* <PromptInputModelSelect onValueChange={onModelChange} value={model}>
             <PromptInputModelSelectTrigger>
@@ -104,6 +108,23 @@ const ChatInput = memo(function ChatInput({
               ))}
             </PromptInputModelSelectContent>
           </PromptInputModelSelect> */}
+            {Object.keys(mcpTools).length > 0 && (
+              <DialogTrigger asChild disabled={mcpLoading}>
+                <Badge
+                  variant="outline"
+                  className="p-2 rounded-sm hover:bg-accent/50 cursor-pointer"
+                >
+                  {!mcpLoading ? (
+                    <>
+                      {Object.keys(mcpTools).length}
+                      <Wrench />
+                    </>
+                  ) : (
+                    <Loader />
+                  )}{" "}
+                </Badge>
+              </DialogTrigger>
+            )}
           </PromptInputTools>
           <PromptInputSubmit
             disabled={!text && !status}

@@ -7,19 +7,35 @@ import {
   stepCountIs,
   FileUIPart,
   generateObject,
+  tool,
+  jsonSchema,
+  Tool,
 } from "ai";
 import { search2Tool as agenticSearch } from "@/app/api/chat/tools/search";
 import { artifactTool } from "./tools/artifact";
 import { dataAnalysisTool } from "./tools/data-analysis";
 import { appBuilderTool } from "./tools/app-builder";
+import { McpTool } from "@/stores/use-mcps";
 import { z } from "zod";
+import { createChat, updateChat } from "@/app/actions/chat-actions";
+import { createMessage } from "@/app/actions/message-actions";
+import { Database, Json } from "@/app/types/database.types";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 120;
 
 export async function POST(req: Request) {
-  const { messages, model }: { messages: UIMessage[]; model: string } =
-    await req.json();
+  const {
+    chatId,
+    messages,
+    model,
+    mcpTools,
+  }: {
+    chatId: string;
+    messages: UIMessage[];
+    model: string;
+    mcpTools: McpTool[];
+  } = await req.json();
   const tabularData: FileUIPart[] = messages.reduce<FileUIPart[]>(
     (acc, { metadata }) => {
       if (metadata) {
@@ -39,6 +55,16 @@ export async function POST(req: Request) {
           .map((file: FileUIPart) => `[${file.filename}](${file.url})`)
           .join(", ")}. Use the agentic data analysis tool to analyze the data.`
       : "";
+
+  const mcps = mcpTools.reduce((acc, { name, description, inputSchema }) => {
+    acc[name] = tool({
+      type: "dynamic",
+      description,
+      inputSchema: jsonSchema(inputSchema) as any,
+    });
+    return acc;
+  }, {} as Record<string, Tool>);
+
   const stream = createUIMessageStream({
     async execute({ writer }) {
       // create title
@@ -50,23 +76,13 @@ export async function POST(req: Request) {
           }),
           system: `Generate a simple title for the chat based on the conversation history`,
           messages: convertToModelMessages(messages),
-        })
-          .then(({ object: { title } }) => {
-            writer.write({
-              type: "data-new-chat-title",
-              data: {
-                title: title,
-              },
-            });
-          })
-          .catch((error) => {
-            console.error("Error generating chat title:", error);
-          });
+        }).then(async ({ object: { title } }) => {
+          await updateChat(chatId, { name: title });
+        });
       }
-
       // Merge another stream from streamText
       const result = streamText({
-        model: "anthropic/claude-4.5-haiku",
+        model: "anthropic/claude-haiku-4.5",
         messages: convertToModelMessages(messages),
         stopWhen: stepCountIs(10),
         system: `You are a helpful assistant. Follow these instructions:
@@ -79,7 +95,7 @@ export async function POST(req: Request) {
         `,
         tools: {
           agenticSearch: agenticSearch({ writer }),
-          agenticArtifact: artifactTool({ writer }),
+          agenticArtifact: artifactTool({ chatId, writer }),
           agenticDataAnalysis: dataAnalysisTool({
             writer,
             files: tabularData.map((file: FileUIPart) => ({
@@ -94,6 +110,7 @@ export async function POST(req: Request) {
           //   messages,
           // }),
           appBuilder: appBuilderTool({ writer, messages }),
+          ...mcps,
         },
         providerOptions: {
           openai: {
@@ -102,7 +119,7 @@ export async function POST(req: Request) {
             reasoningEffort: "low",
           },
         },
-        onFinish: async () => {
+        onFinish: async ({}) => {
           // if first message
         },
       });
@@ -112,8 +129,23 @@ export async function POST(req: Request) {
       );
     },
 
-    onFinish: ({ messages }) => {
-      //   console.log("Stream finished with messages:", messages);
+    onFinish: async ({ messages: completedMessages }) => {
+      const [user, assistant] = [...messages, ...completedMessages]
+        .slice(-2)
+        .map(({ role, parts, metadata }) => {
+          return {
+            chatId,
+            role,
+            parts,
+            metadata: metadata ?? ({} as unknown as Json),
+            attachments: [],
+          };
+        });
+      // save message to db
+      createMessage(
+        chatId as string,
+        [user, assistant] as Database["public"]["Tables"]["message"]["Insert"][]
+      );
     },
   });
   return createUIMessageStreamResponse({ stream });

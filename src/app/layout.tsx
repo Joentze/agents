@@ -31,7 +31,8 @@ export default async function RootLayout({
   const { data: chats, error } = await supabase
     .from("chat")
     .select("*")
-    .order("updated_at", { ascending: false });
+    .order("updated_at", { ascending: false })
+    .range(0, 29);
 
   return (
     <html lang="en">

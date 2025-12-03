@@ -1,9 +1,11 @@
 import {
   generateText,
   hasToolCall,
+  InferUIMessageChunk,
   stepCountIs,
   streamText,
   tool,
+  UIDataTypes,
   UIMessageStreamWriter,
   type UIMessage,
 } from "ai";
@@ -16,6 +18,7 @@ import { AppRunner } from "../classes/app-runner";
 import { Sandbox } from "e2b";
 import { AppBuilderStatusDataPart } from "@/app/types/app-agent";
 import { getSandboxUrl } from "./app-agent/get-sandbox-url";
+import { nanoid } from "nanoid";
 
 interface AppBuilderToolParams {
   messages: UIMessage[];
@@ -52,8 +55,8 @@ function appBuilderTool({ messages, writer }: AppBuilderToolParams) {
           } as AppBuilderStatusDataPart,
           transient: true,
         });
-        await generateText({
-          model: "openai/gpt-5-mini",
+        const { fullStream } = streamText({
+          model: "moonshotai/kimi-k2-thinking",
           system,
           stopWhen: [stepCountIs(20), hasToolCall("get-sandbox-url")],
           prompt: `Generate an app based on the following details: ${details}, get the sandbox URL once the app is built and the dev server is running, try to be straight forward and concise, minimise the number of files, only generate the necessary files`,
@@ -70,7 +73,35 @@ function appBuilderTool({ messages, writer }: AppBuilderToolParams) {
             },
           },
         });
+        let reasoningId;
+        for await (const chunk of fullStream) {
+          try {
+            switch (chunk.type) {
+              case "reasoning-start":
+                reasoningId = nanoid(10);
+                writer.write({
+                  type: "reasoning-start",
+                  id: reasoningId,
+                });
+                break;
+              case "reasoning-delta":
+                // Forward reasoning events to the main stream
+                if (reasoningId) {
+                  writer.write({
+                    type: "reasoning-delta",
+                    id: reasoningId as string,
+                    delta: chunk.text,
+                  });
+                }
+                break;
 
+              default:
+                break;
+            }
+          } catch (error) {
+            console.error(error);
+          }
+        }
         return "App has been built successfully";
         // writer.merge(response.toUIMessageStream({ sendReasoning: true }));
       } catch (error) {

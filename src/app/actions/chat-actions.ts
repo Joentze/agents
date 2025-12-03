@@ -9,7 +9,12 @@ async function updateChat(
   content: Database["public"]["Tables"]["chat"]["Update"]
 ) {
   const supabase = await createClient();
-  await supabase.from("chat").update(content).eq("id", id);
+  const { error } = await supabase.from("chat").update(content).eq("id", id);
+  if (error) {
+    console.log(300, error);
+    throw new Error(`Failed to update chat: ${error.message}`);
+  }
+
   revalidatePath("/", "layout");
 }
 
@@ -48,4 +53,20 @@ async function deleteChat(id: string) {
   revalidatePath("/", "layout");
 }
 
-export { updateChat, createChat, deleteChat };
+async function getChats(
+  offset: number,
+  limit: number
+): Promise<Database["public"]["Tables"]["chat"]["Row"][]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("chat")
+    .select("*")
+    .order("updated_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    throw new Error(`Failed to fetch chats: ${error.message}`);
+  }
+  return data || [];
+}
+export { updateChat, createChat, deleteChat, getChats };

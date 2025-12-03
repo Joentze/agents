@@ -16,6 +16,9 @@ import { useSidebar } from "@/hooks/use-sidebar";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { useTempStore } from "@/hooks/chat/use-temp-store";
+import { McpTool } from "@/stores/use-mcps";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { createChat } from "./actions/chat-actions";
 const models = [
   // { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", provider: "openai" },
   {
@@ -34,6 +37,8 @@ const models = [
 // Memoized chat section to prevent unnecessary re-renders
 const ChatSection = memo(
   ({
+    mcpTools,
+    mcpLoading,
     messages,
     status,
     text,
@@ -45,6 +50,8 @@ const ChatSection = memo(
     hasArtifact,
     hasAppBuilder,
   }: {
+    mcpTools: Record<string, McpTool>;
+    mcpLoading: boolean;
     messages: UIMessage[];
     status: any;
     text: string;
@@ -71,6 +78,8 @@ const ChatSection = memo(
         /> */}
 
         <ChatInput
+          mcpLoading={mcpLoading}
+          mcpTools={mcpTools}
           className="my-auto"
           text={text}
           onTextChange={onTextChange}
@@ -102,8 +111,8 @@ const InputDemo = () => {
   const [text, setText] = useState<string>("");
   const [model, setModel] = useState<string>(models[0].id);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { messages, status, sendMessage } = useChat({});
-  const supabase = createClient();
+  const { messages, status, sendMessage, mcpTools, mcpLoading } = useChat({});
+  const isMobile = useIsMobile();
   // Subscribe to these separately to avoid unnecessary re-renders
   const currentArtifact = useArtifactStore((state) => state.currentArtifact);
 
@@ -152,9 +161,12 @@ const InputDemo = () => {
         chatRequestOptions: {
           body: {
             model: model,
+            mcpTools: Object.values(mcpTools),
+            chatId,
           },
         },
       };
+      createChat({ id: chatId, name: "New Chat" });
       useTempStore.getState().setKey(chatId, firstMessage);
 
       router.push(`/chat/${chatId}`);
@@ -177,13 +189,15 @@ const InputDemo = () => {
           offsetY={0.2}
           className="absolute top-0 left-0 w-full h-full"
         /> */}
-        {!open && (
+        {(!open || isMobile) && (
           <SidebarTrigger
             onClick={() => setOpen(!open)}
             className="m-2 absolute top-0 left-0 z-10"
           />
         )}
         <ChatSection
+          mcpTools={mcpTools}
+          mcpLoading={mcpLoading}
           messages={messages}
           status={status}
           text={text}

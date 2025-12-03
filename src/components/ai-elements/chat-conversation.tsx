@@ -27,6 +27,7 @@ import { Fragment, memo } from "react";
 import type { ChatStatus, UIMessage, UIDataTypes, UITools } from "ai";
 import { CopyIcon } from "lucide-react";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "./reasoning";
+import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "./tool";
 
 interface ChatConversationProps {
   messages: UIMessage<unknown, UIDataTypes, UITools>[];
@@ -58,7 +59,7 @@ const ChatConversation = memo(
                       ))}
                   </MessageAttachments>
                 )}
-                <MessageContent className="text-md">
+                <MessageContent className="text-md max-w-full">
                   {message.parts.map((part, i) => {
                     switch (part.type) {
                       case "text":
@@ -68,19 +69,42 @@ const ChatConversation = memo(
                           </MessageResponse>
                         );
                       case "reasoning":
+                        if (
+                          i === message.parts.length - 1 &&
+                          message.id === messages.at(-1)?.id
+                        ) {
+                          return (
+                            <Reasoning
+                              key={`${message.id}-${i}`}
+                              className="w-full"
+                              isStreaming={
+                                status === "streaming" &&
+                                i === message.parts.length - 1 &&
+                                message.id === messages.at(-1)?.id
+                              }
+                            >
+                              <ReasoningTrigger />
+                              <ReasoningContent>{part.text}</ReasoningContent>
+                            </Reasoning>
+                          );
+                        }
+                        break;
+                      case "dynamic-tool":
                         return (
-                          <Reasoning
-                            key={`${message.id}-${i}`}
-                            className="w-full"
-                            isStreaming={
-                              status === "streaming" &&
-                              i === message.parts.length - 1 &&
-                              message.id === messages.at(-1)?.id
-                            }
-                          >
-                            <ReasoningTrigger />
-                            <ReasoningContent>{part.text}</ReasoningContent>
-                          </Reasoning>
+                          <Tool key={part.toolCallId}>
+                            <ToolHeader
+                              state={part.state}
+                              type={`tool-${part.toolName}`}
+                              title={part.toolName}
+                            ></ToolHeader>
+                            <ToolContent>
+                              <ToolInput input={part.input} />
+                              <ToolOutput
+                                output={part.output}
+                                errorText={part.errorText}
+                              />
+                            </ToolContent>
+                          </Tool>
                         );
                       case "tool-agenticSearch":
                       case "tool-agenticCode":
