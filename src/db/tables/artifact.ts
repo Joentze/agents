@@ -1,21 +1,33 @@
-import { index, pgPolicy, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  pgPolicy,
+  pgTable,
+  text,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { DEFAULT_COLUMNS, DEFAULT_CREATED_BY_COLUMN } from "../utils/column";
 import { sql } from "drizzle-orm";
 import { authenticatedRole } from "drizzle-orm/supabase";
 import { chatTable as chat } from "./chat";
+import { artifactFolder } from "./artifact-folder";
 
 const artifactTable = pgTable(
   "artifact",
   {
     ...DEFAULT_COLUMNS,
     ...DEFAULT_CREATED_BY_COLUMN,
-    callId: text("callId").notNull(),
+    callId: text("callId"),
     title: text("title").notNull(),
     description: text("description").notNull(),
     content: text("content").notNull(),
-    chatId: uuid("chatId")
-      .notNull()
-      .references(() => chat.id),
+    chatId: uuid("chatId").references(() => chat.id),
+    public: boolean("public").notNull().default(false),
+    folderId: uuid("folderId")
+      .references(() => artifactFolder.id, {
+        onDelete: "cascade",
+      })
+      .default(sql`null`),
   },
   (table) => [
     index("artifact_call_id_idx").on(table.callId),
@@ -38,6 +50,11 @@ const artifactTable = pgTable(
       for: "select",
       to: authenticatedRole,
       using: sql.join([sql`${table.createdBy} = auth.uid()`], sql` or `),
+    }),
+    pgPolicy("user can read public artifact", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql.join([sql`${table.public} = true`], sql` or `),
     }),
   ]
 );

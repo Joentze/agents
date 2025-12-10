@@ -47,7 +47,7 @@ const FlashCard = ({
   );
 };
 
-const CalloutComponent = ({ HTMLAttributes }: ReactNodeViewProps) => {
+const FlashCardComponent = ({ HTMLAttributes }: ReactNodeViewProps) => {
   const { type, content } = HTMLAttributes;
   console.log(type);
   if (!content) {
@@ -60,7 +60,7 @@ const CalloutComponent = ({ HTMLAttributes }: ReactNodeViewProps) => {
   } = JSON.parse(decodedContent);
 
   return (
-    <NodeViewWrapper className="callout-node my-4">
+    <NodeViewWrapper className="flash-card-node my-4">
       <div className="space-y-4 flex-1">
         {parsedContent.title && (
           <p className="text-xs text-muted-foreground">{parsedContent.title}</p>
@@ -79,8 +79,8 @@ const CalloutComponent = ({ HTMLAttributes }: ReactNodeViewProps) => {
   );
 };
 
-const Callout = Node.create({
-  name: "callout",
+const FlashCardNode = Node.create({
+  name: "flashcard",
   group: "block",
   content: "block+",
 
@@ -91,25 +91,25 @@ const Callout = Node.create({
   },
 
   parseHTML() {
-    return [{ tag: "div[data-callout]" }];
+    return [{ tag: "div[data-flashcard]" }];
   },
 
   renderHTML({ node, HTMLAttributes }) {
-    return ["div", { "data-callout": node.attrs.type }, 0];
+    return ["div", { "data-flashcard": node.attrs.type }, 0];
   },
 
   addNodeView() {
-    return ReactNodeViewRenderer(CalloutComponent);
+    return ReactNodeViewRenderer(FlashCardComponent);
   },
 
-  markdownTokenName: "callout",
+  markdownTokenName: "flashcard",
 
   ...createBlockMarkdownSpec({
     allowedAttributes: ["content"],
-    nodeName: "callout",
-    name: "callout",
+    nodeName: "flashcard",
+    name: "flashcard",
     content: "block",
   }),
 });
 
-export { Callout };
+export { FlashCardNode };

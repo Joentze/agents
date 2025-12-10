@@ -1,15 +1,11 @@
 import {
-  generateText,
   hasToolCall,
-  InferUIMessageChunk,
   stepCountIs,
   streamText,
   tool,
-  UIDataTypes,
   UIMessageStreamWriter,
   type UIMessage,
 } from "ai";
-import { setTimeout } from "timers/promises";
 import { appBuilderPrompt as system } from "./app-agent/app-builder-prompt";
 import { z } from "zod";
 import { runCommand } from "./app-agent/run-command";

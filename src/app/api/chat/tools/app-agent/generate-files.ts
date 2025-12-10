@@ -251,10 +251,13 @@ function generateFiles({ runner, messages, writer }: AppAgentToolParams) {
       I have successfully generated the following files: ${files
         .map((file) => file.path)
         .join(", ")}
-      Now install the dependencies and start the dev server by running the following command:
+      Now install the dependencies and start the dev server by running the following command(s):
       \`\`\`
       bun install
+      bun lint
+      bun --bun run dev --turbo
       \`\`\`
+      Once the dev server is running, grab the sandbox URL using the get-sandbox-url tool.
       `;
     },
   });

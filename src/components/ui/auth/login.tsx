@@ -12,11 +12,16 @@ import { FcGoogle } from "react-icons/fc";
 
 import { SiGithub } from "@icons-pack/react-simple-icons";
 import { Separator } from "../separator";
-import { createClient } from "@/utils/supabase/client";
+import {
+  signInWithGoogleAction,
+  signInWithGithubAction,
+} from "@/app/actions/auth-actions";
 
-export function LoginCard() {
-  const supabase = createClient();
+interface LoginCardProps {
+  redirectTo?: string;
+}
 
+export function LoginCard({ redirectTo }: LoginCardProps) {
   return (
     <Card className="w-full max-w-sm h-fit border border-border ring-2 ring-border/50 m-auto">
       <CardHeader>
@@ -25,26 +30,19 @@ export function LoginCard() {
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         <Button
+          onClick={async () => await signInWithGoogleAction({ redirectTo })}
           variant="outline"
           className="w-full"
-          onClick={async () =>
-            await supabase.auth.signInWithOAuth({
-              provider: "google",
-            })
-          }
         >
           <FcGoogle />
           Login with Google
         </Button>
         <Separator className="w-full"></Separator>
+
         <Button
+          onClick={async () => await signInWithGithubAction({ redirectTo })}
           variant="outline"
           className="w-full"
-          onClick={async () =>
-            await supabase.auth.signInWithOAuth({
-              provider: "github",
-            })
-          }
         >
           <SiGithub />
           Login with Github

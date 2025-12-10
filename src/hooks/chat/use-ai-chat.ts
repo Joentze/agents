@@ -22,8 +22,8 @@ import {
   AppBuilderStatusDataPart,
 } from "@/app/types/app-agent";
 import { Database } from "@/app/types/database.types";
-import { createChat, updateChat } from "@/app/actions/chat-actions";
-import { createMessage } from "@/app/actions/message-actions";
+import { updateChat } from "@/app/actions/chat-actions";
+
 import { createArtifact } from "@/app/actions/artifact-actions";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { McpOAuthProvider } from "@/utils/mcp/mcp-oauth-provider";
@@ -47,6 +47,10 @@ function useAiChat({
   const previewUrl = useAppBuilder((state) => state.previewUrl);
   const currentPath = useAppBuilder((state) => state.currentPath);
   const sandboxId = useAppBuilder((state) => state.sandboxId);
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
   const runs = useChainOfThoughtStore((state) => state.runs);
   const handleToolCallRef = useRef<((params: any) => Promise<void>) | null>(
@@ -147,13 +151,7 @@ function useAiChat({
             description: string;
             content: string;
           };
-          await createArtifact({
-            callId: artifactRunId as string,
-            title: artifactTitle,
-            description: artifactDescription,
-            content: artifactContent,
-            chatId: chatId as string,
-          });
+
           break;
         case "data-artifact-delta":
           const { delta } = data as unknown as {
@@ -388,6 +386,17 @@ function useAiChat({
       hasLoadedMcpCredentials.current = true;
     }
   }, []);
+
+  // get user's current location
+  useEffect(() => {
+    const getUserLocation = async () => {
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ latitude, longitude });
+      });
+    };
+    getUserLocation();
+  }, []);
   return {
     ...aiSdkUseChat,
     runs,
@@ -400,6 +409,7 @@ function useAiChat({
     previewUrl,
     mcpTools: useMcpStore.getState().tools,
     mcpLoading,
+    userLocation,
   };
 }
 

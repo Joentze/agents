@@ -1,0 +1,3 @@
+CREATE POLICY "user can delete artifact artifact folder link" ON "artifact_artifact_folder_link" AS PERMISSIVE FOR DELETE TO "authenticated" USING ("artifact_artifact_folder_link"."created_by" = auth.uid());--> statement-breakpoint
+CREATE POLICY "user can read artifact artifact folder link" ON "artifact_artifact_folder_link" AS PERMISSIVE FOR SELECT TO "authenticated" USING ("artifact_artifact_folder_link"."created_by" = auth.uid());--> statement-breakpoint
+CREATE POLICY "user can update artifact artifact folder link" ON "artifact_artifact_folder_link" AS PERMISSIVE FOR UPDATE TO "authenticated" USING ("artifact_artifact_folder_link"."created_by" = auth.uid());

@@ -4,7 +4,6 @@ import { type PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { useCallback, useRef, useState, memo } from "react";
 import { useAiChat as useChat } from "@/hooks/chat/use-ai-chat";
 import ChatInput from "@/components/ai-elements/chat-input";
-import ChatConversation from "@/components/ai-elements/chat-conversation";
 
 import { cn } from "@/lib/utils";
 
@@ -111,7 +110,8 @@ const InputDemo = () => {
   const [text, setText] = useState<string>("");
   const [model, setModel] = useState<string>(models[0].id);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { messages, status, sendMessage, mcpTools, mcpLoading } = useChat({});
+  const { messages, status, sendMessage, mcpTools, mcpLoading, userLocation } =
+    useChat({});
   const isMobile = useIsMobile();
   // Subscribe to these separately to avoid unnecessary re-renders
   const currentArtifact = useArtifactStore((state) => state.currentArtifact);
@@ -163,6 +163,7 @@ const InputDemo = () => {
             model: model,
             mcpTools: Object.values(mcpTools),
             chatId,
+            userLocation,
           },
         },
       };

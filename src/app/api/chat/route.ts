@@ -20,17 +20,24 @@ import { z } from "zod";
 import { createChat, updateChat } from "@/app/actions/chat-actions";
 import { createMessage } from "@/app/actions/message-actions";
 import { Database, Json } from "@/app/types/database.types";
+import { googleMapSearch } from "./tools/search/google-map-search";
+import { displayMapTool } from "./tools/search/display-map-tool";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 120;
 
 export async function POST(req: Request) {
   const {
+    userLocation,
     chatId,
     messages,
     model,
     mcpTools,
   }: {
+    userLocation: {
+      latitude: number;
+      longitude: number;
+    } | null;
     chatId: string;
     messages: UIMessage[];
     model: string;
@@ -96,6 +103,7 @@ export async function POST(req: Request) {
         tools: {
           agenticSearch: agenticSearch({ writer }),
           agenticArtifact: artifactTool({ chatId, writer }),
+          agenticMapSearch: googleMapSearch({ writer, userLocation }),
           agenticDataAnalysis: dataAnalysisTool({
             writer,
             files: tabularData.map((file: FileUIPart) => ({
@@ -110,6 +118,7 @@ export async function POST(req: Request) {
           //   messages,
           // }),
           appBuilder: appBuilderTool({ writer, messages }),
+          displayMap: displayMapTool({ writer }),
           ...mcps,
         },
         providerOptions: {

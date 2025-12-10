@@ -43,6 +43,97 @@
       "when": 1764220587284,
       "tag": "0005_melted_prima",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1764824726127,
+      "tag": "0006_update_secret",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1764824738433,
+      "tag": "0007_upsert_secret",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1764826065645,
+      "tag": "0008_confused_rhodey",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1764828676921,
+      "tag": "0009_updated_secret_helpers",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1764829249108,
+      "tag": "0010_update_secret_delete_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1765050671222,
+      "tag": "0011_jittery_old_lace",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1765052366685,
+      "tag": "0012_chemical_mikhail_rasputin",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1765053758849,
+      "tag": "0013_windy_supernaut",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1765348051552,
+      "tag": "0014_jazzy_iron_lad",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1765348073863,
+      "tag": "0015_slimy_boomer",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1765349003107,
+      "tag": "0016_cold_may_parker",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1765406745270,
+      "tag": "0017_thin_zzzax",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1765408589848,
+      "tag": "0018_get_folder_path_function",
+      "breakpoints": true
     }
   ]
 }

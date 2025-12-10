@@ -1,0 +1,2 @@
+ALTER TABLE "artifact" ADD COLUMN "public" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE POLICY "user can read public artifact" ON "artifact" AS PERMISSIVE FOR SELECT TO "authenticated" USING ("artifact"."public" = true);

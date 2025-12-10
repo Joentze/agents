@@ -28,6 +28,8 @@ import type { ChatStatus, UIMessage, UIDataTypes, UITools } from "ai";
 import { CopyIcon } from "lucide-react";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "./reasoning";
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "./tool";
+import { MapSearchToolResult } from "@/app/types/maps";
+import MapComponent from "../ui/map/map-component";
 
 interface ChatConversationProps {
   messages: UIMessage<unknown, UIDataTypes, UITools>[];
@@ -106,26 +108,31 @@ const ChatConversation = memo(
                             </ToolContent>
                           </Tool>
                         );
+                      case "tool-displayMap":
+                        return (
+                          <MapComponent
+                            key={`${message.id}-${i}`}
+                            locations={part.output as MapSearchToolResult[]}
+                          />
+                        );
+                      case "tool-agenticMapSearch":
                       case "tool-agenticSearch":
                       case "tool-agenticCode":
                       case "tool-agenticDataAnalysis":
                       case "tool-agenticArtifact":
                       case "tool-agenticFileCreator":
                         return (
-                          <>
-                            <ChainOfThoughtDisplay
-                              runId={part.toolCallId}
-                              key={`${message.id}-${i}`}
-                            />
+                          <Fragment key={`${message.id}-${i}`}>
+                            <ChainOfThoughtDisplay runId={part.toolCallId} />
                             {part.type === "tool-agenticArtifact" &&
-                              part.output && (
+                              !!part.output && (
                                 <ArtifactPlanDisplay
                                   id={part.toolCallId}
                                   artifact={part.input as ArtifactInput}
                                   isLoading={part.state === "input-streaming"}
                                 />
                               )}
-                          </>
+                          </Fragment>
                         );
                       default:
                         return null;

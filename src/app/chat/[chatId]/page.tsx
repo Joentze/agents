@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import AppBuilderRenderer from "@/components/ai-elements/app-builder/app-builder-renderer";
 import { useAppBuilder } from "@/hooks/app-builder/use-app-builder";
 import { ArtifactBody, useArtifactStore } from "@/hooks/artifact/use-artifact";
-import { ChatRequestOptions, UIMessage, UIDataTypes, UITools } from "ai";
+import { ChatRequestOptions, UIMessage } from "ai";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useSidebar } from "@/hooks/use-sidebar";
 
@@ -113,10 +113,11 @@ const InputDemo = () => {
   const [model, setModel] = useState<string>(models[0].id);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasInitialMessageBeenSent = useRef(false);
-  const { messages, status, sendMessage, mcpTools, mcpLoading } = useChat({
-    messages: initialMessages ?? [],
-    chatId: chatId as string,
-  });
+  const { messages, status, sendMessage, mcpTools, mcpLoading, userLocation } =
+    useChat({
+      messages: initialMessages ?? [],
+      chatId: chatId as string,
+    });
   useEffect(() => {
     console.log("initialArtifacts", initialArtifacts);
     if (initialArtifacts) {
@@ -202,6 +203,7 @@ const InputDemo = () => {
             model: model,
             mcpTools: Object.values(mcpTools),
             chatId,
+            userLocation,
           },
         }
       );

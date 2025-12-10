@@ -1,0 +1,1 @@
+CREATE POLICY "user can update secret" ON "secret" AS PERMISSIVE FOR SELECT TO "authenticated" USING ("secret"."created_by" = auth.uid());

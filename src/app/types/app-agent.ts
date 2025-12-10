@@ -11,7 +11,8 @@ type AppBuilderStatus =
   | "generating"
   | "error"
   | "completed"
-  | "not-started";
+  | "not-started"
+  | "expired";
 
 type AppBuilderStatusDataPart = {
   status: AppBuilderStatus;

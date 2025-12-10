@@ -29,14 +29,24 @@ function runCommand({ runner, writer }: RunCommandParams) {
         writer.write({
           type: "data-app-builder-logs",
           data: {
-            logLevel: "log",
+            level: "log",
             message: cmd,
+            timestamp: new Date().toISOString(),
           },
         });
-
+        let stdouts = "";
+        let stderrs = "";
         const cmdResult = await sandbox.commands.run(cmd, {
           background: !wait,
+          onStdout: (stdout) => {
+            stdouts += stdout;
+          },
+          onStderr: (stderr) => {
+            stderrs += stderr;
+          },
         });
+        console.log(`stdout: ${stdouts}`);
+        console.log(`stderr: ${stderrs}`);
         writer.write({
           type: "data-app-builder-logs",
           data: {

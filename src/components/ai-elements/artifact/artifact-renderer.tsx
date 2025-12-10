@@ -19,27 +19,34 @@ import { Share, X } from "lucide-react";
 import { useArtifactStore } from "@/hooks/artifact/use-artifact";
 
 import { useEffect } from "react";
-import { Callout } from "./custom/callout-node";
+import { FlashCardNode } from "./custom/flash-card-node";
 
 interface ArtifactRendererProps {
   artifactId: string;
   defaultContent?: string;
 }
 
+export const getEditor = (defaultContent?: string) =>
+  useEditor({
+    immediatelyRender: false,
+    extensions: [
+      Markdown,
+      TableKit,
+      StarterKit,
+      FlashCardNode,
+      Image,
+      Mathematics,
+    ],
+    contentType: "markdown",
+    content: defaultContent || "",
+  });
 export function ArtifactRenderer({
   artifactId,
   defaultContent,
 }: ArtifactRendererProps) {
   // Subscribe only to the specific artifact we need
   const artifact = useArtifactStore((state) => state.artifacts[artifactId]);
-
-  const editor = useEditor({
-    immediatelyRender: false,
-    extensions: [Markdown, TableKit, StarterKit, Callout, Image, Mathematics],
-    contentType: "markdown",
-    content: defaultContent || "",
-  });
-
+  const editor = getEditor(defaultContent);
   useEffect(() => {
     if (artifact && editor) {
       editor.commands.setContent(artifact.content, {

@@ -40,5 +40,10 @@ export const secretTable = pgTable(
       to: authenticatedRole,
       using: sql.join([sql`${table.createdBy} = auth.uid()`], sql` or `),
     }),
+    pgPolicy("user can update secret", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql.join([sql`${table.createdBy} = auth.uid()`], sql` or `),
+    }),
   ]
 );

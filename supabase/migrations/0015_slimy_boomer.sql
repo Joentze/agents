@@ -1,0 +1,1 @@
+ALTER TABLE "artifact" ALTER COLUMN "callId" DROP NOT NULL;

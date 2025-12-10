@@ -4,7 +4,6 @@ import { Blocks, Box, ChevronUp, Moon, Plus, Sun } from "lucide-react";
 import { Button } from "../button";
 import {
   Sidebar,
-  SidebarGroup,
   SidebarContent,
   SidebarHeader,
   SidebarTrigger,
@@ -12,8 +11,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarGroupAction,
-  SidebarSeparator,
 } from "../sidebar";
 import { useSidebar } from "@/hooks/use-sidebar";
 import ExistingChats from "../existing-chats";
@@ -69,7 +66,7 @@ export default function AppSidebar({
           New Chat
         </Button>
         <div className="flex flex-col gap-0">
-          <SidebarMenuButton>
+          <SidebarMenuButton onClick={() => router.push("/artifact")}>
             <Box />
             Artifacts
           </SidebarMenuButton>

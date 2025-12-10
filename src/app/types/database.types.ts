@@ -17,10 +17,10 @@ export type Database = {
     Functions: {
       graphql: {
         Args: {
-          extensions?: Json
-          operationName?: string
           query?: string
           variables?: Json
+          extensions?: Json
+          operationName?: string
         }
         Returns: Json
       }
@@ -80,35 +80,41 @@ export type Database = {
       }
       artifact: {
         Row: {
-          callId: string
-          chatId: string
+          callId: string | null
+          chatId: string | null
           content: string
           created_at: string
           created_by: string
           description: string
+          folderId: string | null
           id: string
+          public: boolean
           title: string
           updated_at: string
         }
         Insert: {
-          callId: string
-          chatId: string
+          callId?: string | null
+          chatId?: string | null
           content: string
           created_at?: string
           created_by?: string
           description: string
+          folderId?: string | null
           id?: string
+          public?: boolean
           title: string
           updated_at?: string
         }
         Update: {
-          callId?: string
-          chatId?: string
+          callId?: string | null
+          chatId?: string | null
           content?: string
           created_at?: string
           created_by?: string
           description?: string
+          folderId?: string | null
           id?: string
+          public?: boolean
           title?: string
           updated_at?: string
         }
@@ -118,6 +124,48 @@ export type Database = {
             columns: ["chatId"]
             isOneToOne: false
             referencedRelation: "chat"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artifact_folderId_artifact_folder_id_fk"
+            columns: ["folderId"]
+            isOneToOne: false
+            referencedRelation: "artifact_folder"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artifact_folder: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          parent_folder_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name: string
+          parent_folder_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          parent_folder_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_folder_parent_folder_id_artifact_folder_id_fk"
+            columns: ["parent_folder_id"]
+            isOneToOne: false
+            referencedRelation: "artifact_folder"
             referencedColumns: ["id"]
           },
         ]
@@ -220,15 +268,50 @@ export type Database = {
     }
     Functions: {
       delete_secret_by_key_id: {
-        Args: { p_token_id: string }
+        Args: { p_secret_id: string }
         Returns: string
       }
+      get_folder_path: {
+        Args: { folder_id: string }
+        Returns: {
+          id: string
+          created_at: string
+          updated_at: string
+          created_by: string
+          depth: number
+          name: string
+          parent_folder_id: string
+        }[]
+      }
       get_secret_token: {
-        Args: { p_token_id: string }
+        Args: { p_secret_id: string }
         Returns: string
       }
       insert_secret_token: {
-        Args: { p_secret: string; p_name: string; p_description: string }
+        Args: {
+          p_secret: string
+          p_secret_id: string
+          p_name: string
+          p_description: string
+        }
+        Returns: string
+      }
+      update_secret_token: {
+        Args: {
+          p_secret: string
+          p_name?: string
+          p_description?: string
+          p_secret_id: string
+        }
+        Returns: string
+      }
+      upsert_secret_token: {
+        Args: {
+          p_name: string
+          p_description: string
+          p_secret: string
+          p_secret_id: string
+        }
         Returns: string
       }
     }

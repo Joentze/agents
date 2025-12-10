@@ -1,0 +1,1 @@
+CREATE POLICY "user can read artifact folder" ON "artifact_folder" AS PERMISSIVE FOR SELECT TO "authenticated" USING ("artifact_folder"."created_by" = auth.uid());

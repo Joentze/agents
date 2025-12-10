@@ -6,11 +6,12 @@ type ChainOfThoughtStepType =
   | "date"
   | "writing"
   | "component"
-  | "data-analysis";
+  | "data-analysis"
+  | "map-search";
 
 type SearchStep = {
   query: string;
-  results: { url: string; title: string; text: string, sourceUrl:string }[];
+  results: { url: string; title: string; text: string; sourceUrl: string }[];
 };
 type DateStep = {
   date: string;
@@ -59,7 +60,8 @@ type ChainOfThoughtRunType =
   | "agentic-code"
   | "agentic-data-analysis"
   | "agentic-artifact"
-  | "agentic-file-creator";
+  | "agentic-file-creator"
+  | "agentic-map-search";
 
 type RunStepStatus = "pending" | "completed" | "error";
 type ChainOfThoughtRun = {

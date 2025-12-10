@@ -1,0 +1,1 @@
+ALTER TABLE "artifact" ALTER COLUMN "chatId" DROP NOT NULL;

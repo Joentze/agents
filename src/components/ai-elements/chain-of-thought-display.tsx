@@ -24,14 +24,18 @@ import {
   Calendar,
   ChartAreaIcon,
   Code,
+  Compass,
   Component,
   DotIcon,
   FileIcon,
   Globe,
   ImageIcon,
   LucideIcon,
+  MapPin,
+  MapPinned,
   Pencil,
   Search,
+  StepBack,
   TerminalSquare,
 } from "lucide-react";
 import { Shimmer } from "./shimmer";
@@ -92,6 +96,9 @@ const chainOfThoughtDisplaySteps: ChainOfThoughtDisplaySteps = {
   "data-analysis": {
     icon: ChartAreaIcon,
   },
+  "map-search": {
+    icon: Compass,
+  },
 };
 const chainOfThoughtDisplayHeaders: ChainOfThoughtDisplayHeaders = {
   "agentic-search": {
@@ -118,6 +125,11 @@ const chainOfThoughtDisplayHeaders: ChainOfThoughtDisplayHeaders = {
     icon: FileIcon,
     beforeLabel: "Creating File",
     afterLabel: "Created File",
+  },
+  "agentic-map-search": {
+    icon: MapPinned,
+    beforeLabel: "Searching for Locations",
+    afterLabel: "Searched for Locations",
   },
 };
 
@@ -160,6 +172,37 @@ function SearchStepDisplay({ step }: { step: SearchStep }) {
     </ChainOfThoughtStep>
   );
 }
+function MapSearchStepDisplay({ step }: { step: SearchStep }) {
+  return (
+    <ChainOfThoughtStep
+      label={`Searching for ${step.query}`}
+      icon={chainOfThoughtDisplaySteps.search.icon}
+    >
+      <ChainOfThoughtSearchResults>
+        <TooltipProvider>
+          {step.results.map(({ url, title, sourceUrl }) => (
+            <Tooltip key={url}>
+              <TooltipTrigger asChild>
+                <ChainOfThoughtSearchResult
+                  className="border border-border cursor-pointer rounded-md p-1 ring-1 ring-border/50 bg-muted/50 truncate"
+                  onClick={() => {
+                    window.open(url, "_blank");
+                  }}
+                >
+                  <MapPin />
+                  {title}
+                </ChainOfThoughtSearchResult>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{title}</p>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </TooltipProvider>
+      </ChainOfThoughtSearchResults>
+    </ChainOfThoughtStep>
+  );
+}
 
 function ChainOfThoughtDisplay({ runId }: ChainOfThoughtDisplayProps) {
   // Subscribe only to the specific run we need, not all runs
@@ -188,6 +231,12 @@ function ChainOfThoughtDisplay({ runId }: ChainOfThoughtDisplayProps) {
             <>
               {step.type === "search" && (
                 <SearchStepDisplay
+                  key={stepId}
+                  step={step.data as SearchStep}
+                />
+              )}
+              {step.type === "map-search" && (
+                <MapSearchStepDisplay
                   key={stepId}
                   step={step.data as SearchStep}
                 />

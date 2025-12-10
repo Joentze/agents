@@ -7,11 +7,19 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   // if "next" is in param, use it as the redirect URL
   let next = searchParams.get("next") ?? "/";
+
+  // Decode the URL if it's encoded
+  try {
+    next = decodeURIComponent(next);
+  } catch {
+    // If decoding fails, use the original value
+  }
+
   if (!next.startsWith("/")) {
     // if "next" is not a relative URL, use the default
     next = "/";
   }
-
+  console.log("next", next);
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);

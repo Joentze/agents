@@ -78,6 +78,7 @@ const search2Tool = ({ writer }: { writer: UIMessageStreamWriter }) =>
             },
           }),
         },
+        providerOptions: {},
       });
       const metadata = providerMetadata?.google as
         | GoogleGenerativeAIProviderMetadata
