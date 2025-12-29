@@ -17,10 +17,10 @@ export type Database = {
     Functions: {
       graphql: {
         Args: {
-          query?: string
           variables?: Json
           extensions?: Json
           operationName?: string
+          query?: string
         }
         Returns: Json
       }
@@ -88,8 +88,10 @@ export type Database = {
           description: string
           folderId: string | null
           id: string
+          jsonContent: Json | null
           public: boolean
           title: string
+          type: Database["public"]["Enums"]["artifact_type"]
           updated_at: string
         }
         Insert: {
@@ -101,8 +103,10 @@ export type Database = {
           description: string
           folderId?: string | null
           id?: string
+          jsonContent?: Json | null
           public?: boolean
           title: string
+          type?: Database["public"]["Enums"]["artifact_type"]
           updated_at?: string
         }
         Update: {
@@ -114,8 +118,10 @@ export type Database = {
           description?: string
           folderId?: string | null
           id?: string
+          jsonContent?: Json | null
           public?: boolean
           title?: string
+          type?: Database["public"]["Enums"]["artifact_type"]
           updated_at?: string
         }
         Relationships: [
@@ -191,6 +197,45 @@ export type Database = {
           id?: string
           name?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      file: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          mimeType: string
+          name: string
+          originalMimeType: string
+          size: number
+          type: Database["public"]["Enums"]["file_type"]
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          mimeType: string
+          name: string
+          originalMimeType: string
+          size: number
+          type: Database["public"]["Enums"]["file_type"]
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          mimeType?: string
+          name?: string
+          originalMimeType?: string
+          size?: number
+          type?: Database["public"]["Enums"]["file_type"]
+          updated_at?: string
+          url?: string
         }
         Relationships: []
       }
@@ -274,13 +319,13 @@ export type Database = {
       get_folder_path: {
         Args: { folder_id: string }
         Returns: {
+          updated_at: string
+          depth: number
+          parent_folder_id: string
+          name: string
+          created_by: string
           id: string
           created_at: string
-          updated_at: string
-          created_by: string
-          depth: number
-          name: string
-          parent_folder_id: string
         }[]
       }
       get_secret_token: {
@@ -289,34 +334,35 @@ export type Database = {
       }
       insert_secret_token: {
         Args: {
-          p_secret: string
-          p_secret_id: string
           p_name: string
           p_description: string
+          p_secret: string
+          p_secret_id: string
         }
         Returns: string
       }
       update_secret_token: {
         Args: {
-          p_secret: string
           p_name?: string
-          p_description?: string
           p_secret_id: string
+          p_secret: string
+          p_description?: string
         }
         Returns: string
       }
       upsert_secret_token: {
         Args: {
+          p_secret_id: string
           p_name: string
           p_description: string
           p_secret: string
-          p_secret_id: string
         }
         Returns: string
       }
     }
     Enums: {
-      [_ in never]: never
+      artifact_type: "default" | "code"
+      file_type: "image" | "document" | "csv"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -446,7 +492,10 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      artifact_type: ["default", "code"],
+      file_type: ["image", "document", "csv"],
+    },
   },
 } as const
 

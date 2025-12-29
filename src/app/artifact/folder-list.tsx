@@ -73,21 +73,23 @@ export function FolderList({ folders, parentFolderId }: FolderListProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-8 px-1 bg-background">
-      {folders.map((folder) => (
-        <ArtifactFolderItem
-          key={folder.id}
-          folder={folder}
-          dragOverId={dragOverId}
-          draggingFolderId={draggingFolderId}
-          onDoubleClick={handleFolderDoubleClick}
-          onDragStart={handleFolderDragStart}
-          onDragEnd={handleFolderDragEnd}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        />
-      ))}
+    <div className="flex flex-col gap-2 pt-6 bg-background">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4  px-1 ">
+        {folders.map((folder) => (
+          <ArtifactFolderItem
+            key={folder.id}
+            folder={folder}
+            dragOverId={dragOverId}
+            draggingFolderId={draggingFolderId}
+            onDoubleClick={handleFolderDoubleClick}
+            onDragStart={handleFolderDragStart}
+            onDragEnd={handleFolderDragEnd}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          />
+        ))}
+      </div>
     </div>
   );
 }

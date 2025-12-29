@@ -119,14 +119,13 @@ const InputDemo = () => {
       chatId: chatId as string,
     });
   useEffect(() => {
-    console.log("initialArtifacts", initialArtifacts);
     if (initialArtifacts) {
       const artifacts = initialArtifacts.reduce(
         (
           acc: Record<string, ArtifactBody>,
           artifact: Database["public"]["Tables"]["artifact"]["Row"]
         ) => {
-          acc[artifact.callId] = {
+          acc[artifact.callId ?? ""] = {
             content: artifact.content,
             title: artifact.title,
             description: artifact.description,

@@ -12,7 +12,9 @@ export default async function ArtifactLayout({
   const artifact = await getArtifact(artifactId);
   return (
     <ArtifactProvider artifact={artifact}>
-      <div className="w-full flex flex-col">{children}</div>
+      <div className="w-full max-w-full flex flex-col overflow-hidden">
+        {children}
+      </div>
     </ArtifactProvider>
   );
 }

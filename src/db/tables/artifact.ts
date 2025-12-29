@@ -1,6 +1,8 @@
 import {
   boolean,
   index,
+  json,
+  pgEnum,
   pgPolicy,
   pgTable,
   text,
@@ -12,15 +14,22 @@ import { authenticatedRole } from "drizzle-orm/supabase";
 import { chatTable as chat } from "./chat";
 import { artifactFolder } from "./artifact-folder";
 
+const artifactType = pgEnum("artifact_type", ["default", "code"]);
+
 const artifactTable = pgTable(
   "artifact",
   {
     ...DEFAULT_COLUMNS,
     ...DEFAULT_CREATED_BY_COLUMN,
+    type: artifactType("type").notNull().default("default"),
     callId: text("callId"),
     title: text("title").notNull(),
     description: text("description").notNull(),
     content: text("content").notNull(),
+    // nullable because when ai generates it, you want it to save as markdown
+    // markdown then gets converted to json on the frontend, and saved
+    // json rendering is preferred since it is able to store more attributes
+    jsonContent: json("jsonContent"),
     chatId: uuid("chatId").references(() => chat.id),
     public: boolean("public").notNull().default(false),
     folderId: uuid("folderId")
@@ -59,4 +68,4 @@ const artifactTable = pgTable(
   ]
 );
 
-export { artifactTable };
+export { artifactTable, artifactType };

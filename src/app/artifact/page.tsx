@@ -16,7 +16,7 @@ export default async function ArtifactPage() {
 
   return (
     <div className="w-full md:w-2/3 mx-auto">
-      <div className="top-0 z-10 sticky">
+      <div className="top-0 z-10 sticky ">
         <div className="flex flex-row h-32 border-b border-border bg-background">
           <h1 className="text-3xl my-auto">Artifacts</h1>
           <CreateFolderDialog />

@@ -3,6 +3,9 @@ export default function ArtifactLayout({
 }: {
   children: React.ReactNode;
 }) {
-  
-  return <div className="w-full flex flex-col h-screen">{children}</div>;
+  return (
+    <div className="w-full max-w-full flex flex-col h-screen overflow-y-auto">
+      {children}
+    </div>
+  );
 }

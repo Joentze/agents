@@ -196,8 +196,8 @@ export function PromptInputProvider({
             id: nanoid(),
             type: "file" as const,
             url: data.url, // Use the blob URL from Vercel Blob
-            mediaType: file.type,
-            filename: file.name,
+            mediaType: data.finalMimeType || file.type, // Use converted MIME type if available
+            filename: data.originalFilename || file.name, // Keep original filename for display
           };
         } catch (error) {
           console.error("File upload error:", error);
@@ -607,8 +607,8 @@ export const PromptInput = ({
               id: nanoid(),
               type: "file" as const,
               url: data.url, // Use the blob URL from Vercel Blob
-              mediaType: file.type,
-              filename: file.name,
+              mediaType: data.finalMimeType || file.type, // Use converted MIME type if available
+              filename: data.originalFilename || file.name, // Keep original filename for display
             };
           } catch (error) {
             console.error("File upload error:", error);

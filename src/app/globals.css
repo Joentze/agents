@@ -159,21 +159,69 @@
 }
 
 .tiptap table {
-  width: 100%;
   border-collapse: collapse;
-  margin: 0.5rem 0;
+  margin: 0;
+  overflow: hidden;
+  table-layout: fixed;
+  width: 100%;
 }
 
 .tiptap table td,
 .tiptap table th {
-  border: 1px solid hsl(var(--border));
-  padding: 0.5rem;
-  text-align: left;
+  border: 1px solid var(--muted-foreground);
+  box-sizing: border-box;
+  min-width: 1em;
+  padding: 6px 6px;
+  position: relative;
+  vertical-align: top;
+}
+
+.tiptap table td > *,
+.tiptap table th > * {
+  margin-bottom: 0;
 }
 
 .tiptap table th {
-  background: hsl(var(--background));
+  background-color: var(--secondary);
   font-weight: 600;
+  text-align: left;
+  color: var(--secondary-foreground);
+}
+
+.tiptap table .selectedCell:after {
+  background: oklch(0.488 0.243 264.376 / 20%);
+  content: "";
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+
+.dark .tiptap table .selectedCell:after {
+  background: oklch(0.488 0.243 264.376 / 30%);
+}
+
+.tiptap table .column-resize-handle {
+  background-color: oklch(0.55 0.2 264);
+  bottom: -2px;
+  pointer-events: none;
+  position: absolute;
+  right: -2px;
+  top: 0;
+  width: 4px;
+}
+
+.tiptap .tableWrapper {
+  margin: 1.5rem 0;
+  overflow-x: auto;
+}
+
+.tiptap.resize-cursor {
+  cursor: ew-resize;
+  cursor: col-resize;
 }
 
 .tiptap p {
@@ -271,6 +319,10 @@
   padding: 0.75rem 1rem;
   border: 1px solid var(--border);
 }
+.tiptap hr {
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
 
 .tiptap pre code {
   background: none;
@@ -329,6 +381,14 @@
 
 .tiptap pre .hljs-strong {
   font-weight: 700;
+}
+
+.tiptap p.is-empty::before {
+  color: oklch(0.556 0 0);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
 }
 
 .tiptap mark {

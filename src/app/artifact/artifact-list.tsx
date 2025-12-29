@@ -107,7 +107,7 @@ export function ArtifactList({
   }, [loadMore]);
 
   return (
-    <>
+    <div className="">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6 px-1">
         {artifacts.map((artifact) => (
           <Card
@@ -146,6 +146,6 @@ export function ArtifactList({
           {loading && <Loader className="w-6 h-6 animate-spin" />}
         </div>
       )}
-    </>
+    </div>
   );
 }

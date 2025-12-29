@@ -34,7 +34,7 @@ type CodeStep = {
   output: string | undefined;
 };
 type ComponentStep = {
-  component: "flash-card" | undefined;
+  component: "flash-card" | "mcq" | "openended" | undefined;
 };
 
 type StepData =

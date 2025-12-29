@@ -65,9 +65,9 @@ const ChatInput = memo(function ChatInput({
         onSubmit={onSubmit}
         globalDrop
         multiple
-        accept="text/csv,application/pdf,image/jpeg,image/png"
+        accept="text/csv,application/pdf,image/jpeg,image/png,image/webp,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/html,text/markdown,text/plain"
         maxFiles={10}
-        maxFileSize={5 * 1024 * 1024}
+        maxFileSize={50 * 1024 * 1024}
       >
         <PromptInputBody>
           <PromptInputAttachments>

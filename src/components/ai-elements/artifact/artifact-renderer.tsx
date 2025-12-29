@@ -15,11 +15,20 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { Markdown } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
 import { TableKit } from "@tiptap/extension-table";
+import Highlight from "@tiptap/extension-highlight";
 import { Share, X } from "lucide-react";
 import { useArtifactStore } from "@/hooks/artifact/use-artifact";
+import { Gapcursor } from "@tiptap/extensions";
 
 import { useEffect } from "react";
 import { FlashCardNode } from "./custom/flash-card-node";
+import Commands from "./suggestion/artifact-suggestion-command";
+import { Placeholder } from "@tiptap/extensions";
+import { MCQNode } from "./custom/mcq-node";
+import { OpenEndedNode } from "./custom/open-ended-node";
+import { AIDiffNode } from "./custom/ai-diff-node";
+import { FileAttachmentNode } from "./custom/file-attachment-node";
+import { FileHandlerExtension } from "@/utils/artifact/file-handler";
 
 interface ArtifactRendererProps {
   artifactId: string;
@@ -31,11 +40,26 @@ export const getEditor = (defaultContent?: string) =>
     immediatelyRender: false,
     extensions: [
       Markdown,
-      TableKit,
+      TableKit.configure({
+        table: { resizable: true },
+      }),
+      FileHandlerExtension,
       StarterKit,
       FlashCardNode,
+      MCQNode,
       Image,
       Mathematics,
+      Gapcursor,
+      Commands,
+      OpenEndedNode,
+      AIDiffNode,
+      FileAttachmentNode,
+      Highlight.configure({
+        multicolor: true,
+      }),
+      Placeholder.configure({
+        placeholder: "Type '/' for commands",
+      }),
     ],
     contentType: "markdown",
     content: defaultContent || "",

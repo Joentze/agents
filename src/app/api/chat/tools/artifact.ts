@@ -36,13 +36,46 @@ const flashCardTool = tool({
     });
   },
 });
-
+const mcqTool = tool({
+  name: "mcq",
+  description: "Use the mcq tool when creating mcqs",
+  inputSchema: z.object({
+    questions: z.array(
+      z.object({
+        question: z.string().describe("The question of the mcq"),
+        options: z.array(
+          z.object({
+            option: z.string().describe("The option of the mcq"),
+            isCorrect: z.boolean().describe("Whether the option is correct"),
+          })
+        ),
+      })
+    ),
+  }),
+});
+const openEndedTool = tool({
+  name: "open-ended",
+  description: "Use the open-ended tool when creating open-ended questions",
+  inputSchema: z.object({
+    questions: z.array(
+      z.object({
+        question: z.string().describe("The question of the open-ended"),
+        recommendedAnswer: z
+          .string()
+          .describe("The recommended answer of the open-ended"),
+      })
+    ),
+  }),
+});
 const artifactTool = ({ chatId, writer }: ArtifactToolParams) =>
   tool({
     name: "artifact",
     description: `
       Use the artifact tool when creating reports or summaries of information, 
-      you can use the flash-card tool to create flash cards.`,
+      you can use the flash-card tool to create flash cards
+      you can use the mcq tool to create mcqs.
+      you can use the open-ended tool to create open-ended questions.
+      `,
     inputSchema: z.object({
       title: z.string().describe("The title of the artifact"),
       description: z.string().describe("The description of the artifact"),
@@ -90,11 +123,13 @@ const artifactTool = ({ chatId, writer }: ArtifactToolParams) =>
       });
 
       const { fullStream } = streamText({
-        model: "openai/gpt-5-nano",
+        model: "anthropic/claude-haiku-4.5",
         tools: {
           flashCardTool,
+          mcqTool,
+          openEndedTool,
         },
-        stopWhen: stepCountIs(3),
+        stopWhen: stepCountIs(5),
         prompt: `
             You are a writer and you write a detailed report based on the following:
             title: ${title}
@@ -122,35 +157,109 @@ const artifactTool = ({ chatId, writer }: ArtifactToolParams) =>
             });
             break;
           case "tool-call":
-            const component = `:::callout {type="${
-              chunk.toolName
-            }" content="${Buffer.from(JSON.stringify(chunk.input)).toString(
-              "base64"
-            )}"}
+            if (chunk.toolName === "flashCardTool") {
+              const component = `:::flashcard {type="${
+                chunk.toolName
+              }" content="${Buffer.from(JSON.stringify(chunk.input)).toString(
+                "base64"
+              )}"}
 
 ${JSON.stringify(chunk.input)}
 
 :::`;
-            writer.write({
-              type: "data-artifact-delta",
-              id: runId,
-              data: {
-                delta: component,
-              },
-            });
-            writer.write({
-              type: "data-chain-of-thought-step-update",
-              data: {
-                status: "completed",
-                type: "component",
-                runId,
-                stepId: runId,
+              writer.write({
+                type: "data-artifact-delta",
+                id: runId,
                 data: {
-                  component: "flash-card" as ComponentStep["component"],
+                  delta: component,
                 },
-              } as StepUpdateType,
-            });
-            content += component;
+              });
+              writer.write({
+                type: "data-chain-of-thought-step-update",
+                data: {
+                  status: "completed",
+                  type: "component",
+                  runId,
+                  stepId: runId,
+                  data: {
+                    component: "flash-card" as ComponentStep["component"],
+                  },
+                } as StepUpdateType,
+              });
+              content += component;
+            } else if (chunk.toolName === "mcqTool") {
+              const component = `:::mcq {type="${
+                chunk.toolName
+              }" content="${Buffer.from(
+                JSON.stringify({
+                  ...(chunk.input as object),
+                  id: chunk.toolCallId,
+                })
+              ).toString("base64")}"}
+
+${JSON.stringify({
+  ...(chunk.input as object),
+  id: chunk.toolCallId,
+})}
+
+:::`;
+              writer.write({
+                type: "data-artifact-delta",
+                id: runId,
+                data: {
+                  delta: component,
+                },
+              });
+              writer.write({
+                type: "data-chain-of-thought-step-update",
+                data: {
+                  status: "completed",
+                  type: "component",
+                  runId,
+                  stepId: runId,
+                  data: {
+                    component: "mcq" as ComponentStep["component"],
+                  },
+                } as StepUpdateType,
+              });
+              content += component;
+            } else if (chunk.toolName === "openEndedTool") {
+              const component = `:::openended {type="${
+                chunk.toolName
+              }" content="${Buffer.from(
+                JSON.stringify({
+                  ...(chunk.input as object),
+                  id: chunk.toolCallId,
+                })
+              ).toString("base64")}"}
+
+${JSON.stringify({
+  ...(chunk.input as object),
+  id: chunk.toolCallId,
+})}
+
+:::`;
+              writer.write({
+                type: "data-artifact-delta",
+                id: runId,
+                data: {
+                  delta: component,
+                },
+              });
+              writer.write({
+                type: "data-chain-of-thought-step-update",
+                data: {
+                  status: "completed",
+                  type: "component",
+                  runId,
+                  stepId: runId,
+                  data: {
+                    component: "openended" as ComponentStep["component"],
+                  },
+                } as StepUpdateType,
+              });
+              content += component;
+            }
             break;
           default:
             break;
@@ -187,6 +296,7 @@ ${JSON.stringify(chunk.input)}
           endDatetime: Date.now(),
         } as ChainOfThoughtRun,
       });
+
       await createArtifact({
         callId: runId,
         title,

@@ -9,14 +9,15 @@ import { useArtifactData } from "./artifact-provider";
 import { getEditor } from "@/components/ai-elements/artifact/artifact-renderer";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { EditorContent } from "@tiptap/react";
-import { useEffect, useState } from "react";
+import { Editor, EditorContent } from "@tiptap/react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { PDFViewer } from "@/components/ui/pdf-viewer";
 import { cn } from "@/lib/utils";
-import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
+import { useFileViewer } from "@/hooks/artifact/use-file-viewer";
+
 import { Button } from "@/components/ui/button";
-import { Link, Share } from "lucide-react";
+import { GripVertical, Link, Share } from "lucide-react";
+import DragHandle from "@tiptap/extension-drag-handle-react";
 
 import {
   Dialog,
@@ -30,6 +31,31 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { createClient } from "@/utils/supabase/client";
+import { updateArtifact } from "@/app/actions/artifact-actions";
+import { ArtifactBubbleMenu } from "@/components/ai-elements/artifact/menu/artifact-bubble-menu";
+
+function formatTimeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+
+  if (seconds < 10) return "just now";
+  if (seconds < 60) return `${seconds} seconds ago`;
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60)
+    return `${minutes} ${minutes === 1 ? "minute" : "minutes"} ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} ${days === 1 ? "day" : "days"} ago`;
+
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} ${months === 1 ? "month" : "months"} ago`;
+
+  const years = Math.floor(months / 12);
+  return `${years} ${years === 1 ? "year" : "years"} ago`;
+}
 
 export default function ArtifactPage({
   params,
@@ -40,9 +66,51 @@ export default function ArtifactPage({
   const editor = getEditor(content);
   const { open, setOpen } = useSidebar();
   const isMobile = useIsMobile();
-  // here for testing only
-  const [fileOpen, setFileOpen] = useState(true);
+  const { isOpen: fileOpen, fileUrl, fileName, closeFile } = useFileViewer();
   const [isPublic, setIsPublic] = useState<boolean>(isArtifactPublic);
+  const [lastEdited, setLastEdited] = useState<Date | null>(null);
+  const [timeAgoText, setTimeAgoText] = useState<string>("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const titleRef = useRef<HTMLDivElement>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const debouncedSave = useCallback(
+    async (updates: { title?: string; content?: string }) => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      saveTimeoutRef.current = setTimeout(async () => {
+        try {
+          setIsSaving(true);
+          await updateArtifact(id, updates);
+          setLastEdited(new Date());
+        } catch (error) {
+          console.error("Failed to save:", error);
+        } finally {
+          setIsSaving(false);
+        }
+      }, 1000); // 1 second debounce
+    },
+    [id]
+  );
+
+  const handleTitleChange = useCallback(
+    (e: React.FormEvent<HTMLDivElement>) => {
+      const newTitle = e.currentTarget.textContent || "";
+      debouncedSave({ title: newTitle });
+    },
+    [debouncedSave]
+  );
+
+  const handleContentChange = useCallback(
+    ({ editor }: { editor: Editor }) => {
+      const markdown = editor.getMarkdown();
+      debouncedSave({ content: markdown });
+    },
+    [debouncedSave]
+  );
 
   async function updateArtifactPublicity({ isPublic }: { isPublic: boolean }) {
     const supabase = await createClient();
@@ -59,20 +127,42 @@ export default function ArtifactPage({
     setIsPublic(isPublic);
     return data;
   }
+
   useEffect(() => {
     if (editor) {
       editor.commands.setContent(content, {
         emitUpdate: false,
         contentType: "markdown",
       });
+
+      // Set up content change listener
+      editor.on("update", handleContentChange);
+
+      return () => {
+        editor.off("update", handleContentChange);
+      };
     }
-  }, [editor, content]);
+  }, [editor, content, handleContentChange]);
+
+  // Update time ago text every 10 seconds
+  useEffect(() => {
+    if (!lastEdited) return;
+
+    const updateTimeAgo = () => {
+      setTimeAgoText(formatTimeAgo(lastEdited));
+    };
+
+    updateTimeAgo();
+    const interval = setInterval(updateTimeAgo, 10000); // Update every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [lastEdited]);
 
   const showTrigger = !open || isMobile;
 
   return (
     <Dialog>
-      <div className="h-screen w-full flex flex-col overflow-hidden bg-background">
+      <div className="h-screen w-full max-w-full flex flex-col overflow-hidden bg-background">
         <div className="h-14 p-2 flex flex-row absolute top-0 left-0 w-full z-3 bg-gradient-to-b from-background to-transparent">
           {showTrigger && (
             <SidebarTrigger
@@ -80,75 +170,105 @@ export default function ArtifactPage({
               onClick={() => setOpen(!open)}
             />
           )}
-
-          <DialogTrigger asChild>
-            <Button variant={"ghost"} className="ml-auto">
-              <Share />
-              Share
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Share Artifact</DialogTitle>
-              <DialogDescription>
-                Make artifact public to share with others
-              </DialogDescription>
-            </DialogHeader>
-            <div className="rounded-md w-full bg-accent/50 border border-border p-4">
-              <div className="flex items-center space-x-2 ">
-                <Label htmlFor="public-artifact">
-                  Make artifact {isPublic ? "private" : "public"}?
-                </Label>
-                <Switch
-                  id="public-artifact"
-                  className="ml-auto"
-                  checked={isPublic}
-                  onCheckedChange={async (checked) => {
-                    await updateArtifactPublicity({ isPublic: checked });
-                  }}
-                />
-              </div>
+          <div className="flex flex-row gap-2 ml-auto">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {isSaving && (
+                <p className="text-sm text-muted-foreground animate-pulse">
+                  Saving...
+                </p>
+              )}
+              {!isSaving && lastEdited && (
+                <p className="text-sm text-muted-foreground">
+                  Edited {timeAgoText}
+                </p>
+              )}
             </div>
-            <DialogFooter>
-              <Button
-                disabled={!isPublic}
-                onClick={() => {
-                  navigator.clipboard.writeText(
-                    `${window.location.origin}/artifact/${id}`
-                  );
-                }}
-              >
-                <Link />
-                Copy Link
+            <DialogTrigger asChild>
+              <Button variant={"ghost"} className="">
+                <Share />
+                Share
               </Button>
-            </DialogFooter>
-          </DialogContent>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Share Artifact</DialogTitle>
+                <DialogDescription>
+                  Make artifact public to share with others
+                </DialogDescription>
+              </DialogHeader>
+              <div className="rounded-md w-full bg-accent/50 border border-border p-4">
+                <div className="flex items-center space-x-2 ">
+                  <Label htmlFor="public-artifact">
+                    Make artifact {isPublic ? "private" : "public"}?
+                  </Label>
+                  <Switch
+                    id="public-artifact"
+                    className="ml-auto"
+                    checked={isPublic}
+                    onCheckedChange={async (checked) => {
+                      await updateArtifactPublicity({ isPublic: checked });
+                    }}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  disabled={!isPublic}
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `${window.location.origin}/artifact/${id}`
+                    );
+                  }}
+                >
+                  <Link />
+                  Copy Link
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </div>
         </div>
-        <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+        <ResizablePanelGroup
+          direction="horizontal"
+          className="h-full w-full overflow-hidden"
+        >
           <ResizablePanel
             defaultSize={fileOpen ? 50 : 100}
             minSize={25}
-            className="h-full"
+            className="h-full min-w-0"
           >
-            <div className="h-full w-full overflow-y-auto">
-              <div className={cn("pb-24", showTrigger ? "pt-12" : "pt-4")}>
+            <div className="h-full w-full max-w-full overflow-y-auto overflow-x-hidden">
+              <div
+                className={cn(
+                  "pb-24 max-w-full",
+                  showTrigger ? "pt-12" : "pt-4"
+                )}
+              >
                 <div
                   className={cn(
-                    "md:mx-24 lg:mx-56 mx-6 border-b border-border flex flex-col gap-2 pb-10 mt-8",
+                    "md:mx-24 lg:mx-56 mx-6 border-b border-border flex flex-col gap-2 pb-10 mt-8 max-w-full",
                     fileOpen && "md:mx-6 lg:mx-6 mx-6"
                   )}
                 >
                   <div
+                    ref={titleRef}
                     contentEditable
+                    suppressContentEditableWarning
+                    onInput={handleTitleChange}
                     className="md:text-3xl text-2xl font-bold line-clamp-1 focus:outline-none"
                   >
                     {title}
                   </div>
                 </div>
+                {editor && <ArtifactBubbleMenu editor={editor as Editor} />}
+                <DragHandle editor={editor as Editor}>
+                  <Button variant={"ghost"} size={"icon"} className="mr-8 w-5 ">
+                    <GripVertical />
+                  </Button>
+                </DragHandle>
                 <EditorContent
                   editor={editor}
                   className={cn(
-                    "md:px-24 lg:px-56 px-6",
+                    "md:px-24 lg:px-56 px-6 max-w-full",
                     fileOpen && "md:px-6 lg:px-6 px-6"
                   )}
                 />
@@ -158,18 +278,16 @@ export default function ArtifactPage({
           {fileOpen && (
             <ResizableHandle withHandle className="bg-transparent" />
           )}
-          {fileOpen && (
+          {fileOpen && fileUrl && fileName && (
             <ResizablePanel
               defaultSize={50}
               minSize={25}
-              className="h-full p-4 pt-14"
+              className="h-full min-w-0 p-4 pt-14 overflow-hidden"
             >
               <PDFViewer
-                onClose={() => setFileOpen(false)}
-                fileUrl={
-                  "https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf"
-                }
-                fileName={"test.pdf"}
+                onClose={closeFile}
+                fileUrl={fileUrl}
+                fileName={fileName}
               />
             </ResizablePanel>
           )}
