@@ -9,7 +9,7 @@ import { useArtifactData } from "./artifact-provider";
 import { getEditor } from "@/components/ai-elements/artifact/artifact-renderer";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Editor, EditorContent } from "@tiptap/react";
+import { Editor, EditorContent, JSONContent } from "@tiptap/react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { PDFViewer } from "@/components/ui/pdf-viewer";
 import { cn } from "@/lib/utils";
@@ -33,6 +33,7 @@ import { Switch } from "@/components/ui/switch";
 import { createClient } from "@/utils/supabase/client";
 import { updateArtifact } from "@/app/actions/artifact-actions";
 import { ArtifactBubbleMenu } from "@/components/ai-elements/artifact/menu/artifact-bubble-menu";
+import { Json } from "@/app/types/database.types";
 
 function formatTimeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -62,8 +63,17 @@ export default function ArtifactPage({
 }: {
   params: Promise<{ artifactId: string }>;
 }) {
-  const { id, content, title, public: isArtifactPublic } = useArtifactData();
-  const editor = getEditor(content);
+  const {
+    id,
+    content,
+    title,
+    public: isArtifactPublic,
+    jsonContent,
+  } = useArtifactData();
+  const editor = getEditor(
+    content,
+    jsonContent as unknown as JSONContent | null
+  );
   const { open, setOpen } = useSidebar();
   const isMobile = useIsMobile();
   const { isOpen: fileOpen, fileUrl, fileName, closeFile } = useFileViewer();
@@ -76,7 +86,11 @@ export default function ArtifactPage({
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const debouncedSave = useCallback(
-    async (updates: { title?: string; content?: string }) => {
+    async (updates: {
+      title?: string;
+      content?: string;
+      jsonContent?: Record<string, unknown>;
+    }) => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
@@ -84,7 +98,11 @@ export default function ArtifactPage({
       saveTimeoutRef.current = setTimeout(async () => {
         try {
           setIsSaving(true);
-          await updateArtifact(id, updates);
+          console.log(101, updates);
+          await updateArtifact(id, {
+            ...updates,
+            jsonContent: updates.jsonContent as Json,
+          });
           setLastEdited(new Date());
         } catch (error) {
           console.error("Failed to save:", error);
@@ -107,7 +125,7 @@ export default function ArtifactPage({
   const handleContentChange = useCallback(
     ({ editor }: { editor: Editor }) => {
       const markdown = editor.getMarkdown();
-      debouncedSave({ content: markdown });
+      debouncedSave({ content: markdown, jsonContent: editor.getJSON() });
     },
     [debouncedSave]
   );

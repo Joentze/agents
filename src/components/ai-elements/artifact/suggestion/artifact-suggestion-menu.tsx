@@ -176,7 +176,7 @@ export const suggestionMenu = {
         icon: <Code />,
         title: "Code Block",
         command: ({ editor, range }: { editor: Editor; range: any }) => {
-          editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
+          editor.chain().focus().deleteRange(range).setCodeBlock().run();
         },
       },
       {
@@ -192,7 +192,7 @@ export const suggestionMenu = {
         icon: <SeparatorHorizontal />,
         title: "Line Separator",
         command: ({ editor, range }: { editor: Editor; range: any }) => {
-          editor.chain().focus().deleteRange(range).insertContent("<hr>").run();
+          editor.chain().focus().deleteRange(range).setHorizontalRule().run();
         },
       },
       {

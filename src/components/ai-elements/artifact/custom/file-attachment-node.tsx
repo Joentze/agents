@@ -4,14 +4,9 @@ import {
   ReactNodeViewProps,
   ReactNodeViewRenderer,
 } from "@tiptap/react";
-import { Node, mergeAttributes } from "@tiptap/core";
+import { Node, createBlockMarkdownSpec, mergeAttributes } from "@tiptap/core";
 import { useCallback } from "react";
-import {
-  FileText,
-  FileSpreadsheet,
-  Presentation,
-  File,
-} from "lucide-react";
+import { FileText, FileSpreadsheet, Presentation, File } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFileViewer } from "@/hooks/artifact/use-file-viewer";
 
@@ -96,18 +91,12 @@ function getFileTypeLabel(mimeType: string): string {
   return "Document";
 }
 
-interface FileAttachmentComponentProps extends ReactNodeViewProps {
-  node: {
-    attrs: {
-      url: string;
-      filename: string;
-      originalMimeType: string;
-    };
+const FileAttachmentComponent = ({ node }: ReactNodeViewProps) => {
+  const { url, filename, originalMimeType } = node.attrs as {
+    url: string;
+    filename: string;
+    originalMimeType: string;
   };
-}
-
-const FileAttachmentComponent = ({ node }: FileAttachmentComponentProps) => {
-  const { url, filename, originalMimeType } = node.attrs;
   const { openFile, fileUrl } = useFileViewer();
 
   const IconComponent = getFileIcon(originalMimeType);
@@ -169,7 +158,7 @@ const FileAttachmentNode = Node.create({
   parseHTML() {
     return [
       {
-        tag: 'div[data-file-attachment]',
+        tag: "div[data-file-attachment]",
       },
     ];
   },
@@ -184,6 +173,14 @@ const FileAttachmentNode = Node.create({
   addNodeView() {
     return ReactNodeViewRenderer(FileAttachmentComponent);
   },
+  markdownTokenName: "fileAttachment",
+
+  ...createBlockMarkdownSpec({
+    allowedAttributes: ["url", "filename", "originalMimeType"],
+    nodeName: "fileAttachment",
+    name: "fileAttachment",
+    content: "block",
+  }),
 });
 
 export { FileAttachmentNode };

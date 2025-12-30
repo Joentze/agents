@@ -11,7 +11,7 @@ import {
 } from "../artifact";
 import { Image } from "@tiptap/extension-image";
 import { Mathematics } from "@tiptap/extension-mathematics";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { EditorContent, JSONContent, useEditor } from "@tiptap/react";
 import { Markdown } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
 import { TableKit } from "@tiptap/extension-table";
@@ -29,14 +29,22 @@ import { OpenEndedNode } from "./custom/open-ended-node";
 import { AIDiffNode } from "./custom/ai-diff-node";
 import { FileAttachmentNode } from "./custom/file-attachment-node";
 import { FileHandlerExtension } from "@/utils/artifact/file-handler";
+import HorizontalRule from "@tiptap/extension-horizontal-rule";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import { lowlight } from "@/utils/artifact/code-block/lowlight";
+import { Json } from "@/app/types/database.types";
 
 interface ArtifactRendererProps {
   artifactId: string;
   defaultContent?: string;
 }
 
-export const getEditor = (defaultContent?: string) =>
-  useEditor({
+export const getEditor = (
+  defaultContent?: string,
+  defaultJsonContent?: JSONContent | null
+) => {
+  console.log(defaultJsonContent);
+  return useEditor({
     immediatelyRender: false,
     extensions: [
       Markdown,
@@ -51,11 +59,15 @@ export const getEditor = (defaultContent?: string) =>
       Mathematics,
       Gapcursor,
       Commands,
+      HorizontalRule,
       OpenEndedNode,
       AIDiffNode,
       FileAttachmentNode,
       Highlight.configure({
         multicolor: true,
+      }),
+      CodeBlockLowlight.configure({
+        lowlight,
       }),
       Placeholder.configure({
         placeholder: "Type '/' for commands",
@@ -64,6 +76,7 @@ export const getEditor = (defaultContent?: string) =>
     contentType: "markdown",
     content: defaultContent || "",
   });
+};
 export function ArtifactRenderer({
   artifactId,
   defaultContent,
