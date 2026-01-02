@@ -98,7 +98,6 @@ export default function ArtifactPage({
       saveTimeoutRef.current = setTimeout(async () => {
         try {
           setIsSaving(true);
-          console.log(101, updates);
           await updateArtifact(id, {
             ...updates,
             jsonContent: updates.jsonContent as Json,

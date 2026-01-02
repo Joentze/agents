@@ -15,7 +15,7 @@ import { EditorContent, JSONContent, useEditor } from "@tiptap/react";
 import { Markdown } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
 import { TableKit } from "@tiptap/extension-table";
-import Highlight from "@tiptap/extension-highlight";
+import { Highlight } from "./custom/highlight";
 import { Share, X } from "lucide-react";
 import { useArtifactStore } from "@/hooks/artifact/use-artifact";
 import { Gapcursor } from "@tiptap/extensions";
@@ -63,9 +63,7 @@ export const getEditor = (
       OpenEndedNode,
       AIDiffNode,
       FileAttachmentNode,
-      Highlight.configure({
-        multicolor: true,
-      }),
+      Highlight,
       CodeBlockLowlight.configure({
         lowlight,
       }),

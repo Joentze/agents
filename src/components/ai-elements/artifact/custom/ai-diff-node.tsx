@@ -5,7 +5,7 @@ import {
   ReactNodeViewProps,
   ReactNodeViewRenderer,
 } from "@tiptap/react";
-import { Node, mergeAttributes } from "@tiptap/core";
+import { Node, createBlockMarkdownSpec, mergeAttributes } from "@tiptap/core";
 import { Check, X, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -247,6 +247,12 @@ const AIDiffNode = Node.create({
   addNodeView() {
     return ReactNodeViewRenderer(AIDiffComponent);
   },
+  ...createBlockMarkdownSpec({
+    allowedAttributes: ["originalContent", "newContent", "diffs"],
+    nodeName: "aiDiff",
+    name: "aiDiff",
+    content: "block",
+  }),
 });
 
 export { AIDiffNode, generateId, type DiffSegment };

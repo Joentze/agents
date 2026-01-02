@@ -13,6 +13,7 @@ import {
   ListCheck,
   PenBox,
   Send,
+  Highlighter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -135,6 +136,20 @@ export function ArtifactBubbleMenu({ editor }: ArtifactBubbleMenuProps) {
           <>
             <ButtonGroup className="rounded-full">
               <ButtonGroup className="rounded-full">
+                <Button
+                  className={cn("rounded-full", isBold && "bg-accent/50")}
+                  variant={"outline"}
+                  size={"icon-sm"}
+                  onClick={() =>
+                    editor
+                      .chain()
+                      .focus()
+                      .toggleHighlight({ color: "orange" })
+                      .run()
+                  }
+                >
+                  <Highlighter />
+                </Button>
                 <Button
                   className={cn("rounded-full", isBold && "bg-accent/50")}
                   variant={"outline"}
