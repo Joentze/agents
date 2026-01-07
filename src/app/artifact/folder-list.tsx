@@ -3,8 +3,10 @@
 import { Database } from "@/app/types/database.types";
 import { useRouter } from "next/navigation";
 import {
+  deleteArtifactFolder,
   moveArtifactToFolder,
   moveFolderToFolder,
+  updateArtifactFolder,
 } from "@/app/actions/artifact-actions";
 import { useState } from "react";
 import { ArtifactFolderItem } from "@/components/ui/artifact/artifact-folder";
@@ -16,8 +18,12 @@ interface FolderListProps {
   parentFolderId?: string | null;
 }
 
-export function FolderList({ folders, parentFolderId }: FolderListProps) {
+export function FolderList({
+  folders: initialFolders,
+  parentFolderId,
+}: FolderListProps) {
   const router = useRouter();
+  const [folders, setFolders] = useState<ArtifactFolder[]>(initialFolders);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [draggingFolderId, setDraggingFolderId] = useState<string | null>(null);
 
@@ -54,13 +60,42 @@ export function FolderList({ folders, parentFolderId }: FolderListProps) {
         await moveArtifactToFolder(artifactId, targetFolderId);
       } else if (sourceFolderId && sourceFolderId !== targetFolderId) {
         // Moving a folder into another folder
+        // Optimistically remove the folder from the list
+        setFolders((prev) => prev.filter((f) => f.id !== sourceFolderId));
         await moveFolderToFolder(sourceFolderId, targetFolderId);
       }
-      // Refresh the page to update the lists
-      router.refresh();
     } catch (error) {
       console.error("Failed to move item to folder:", error);
-      // Optional: Show error toast message
+      // Revert on error
+      setFolders(initialFolders);
+    }
+  };
+
+  const handleRename = async (id: string, newName: string) => {
+    // Optimistically update the folder name
+    setFolders((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, name: newName } : f))
+    );
+
+    try {
+      await updateArtifactFolder(id, { name: newName });
+    } catch (error) {
+      console.error("Failed to rename folder:", error);
+      // Revert on error
+      setFolders(initialFolders);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    // Optimistically remove the folder
+    setFolders((prev) => prev.filter((f) => f.id !== id));
+
+    try {
+      await deleteArtifactFolder(id);
+    } catch (error) {
+      console.error("Failed to delete folder:", error);
+      // Revert on error
+      setFolders(initialFolders);
     }
   };
 
@@ -74,7 +109,7 @@ export function FolderList({ folders, parentFolderId }: FolderListProps) {
 
   return (
     <div className="flex flex-col gap-2 pt-6 bg-background">
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4  px-1 ">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 px-1">
         {folders.map((folder) => (
           <ArtifactFolderItem
             key={folder.id}
@@ -87,6 +122,8 @@ export function FolderList({ folders, parentFolderId }: FolderListProps) {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
+            onRename={handleRename}
+            onDelete={handleDelete}
           />
         ))}
       </div>

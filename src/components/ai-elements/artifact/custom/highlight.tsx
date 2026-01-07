@@ -10,16 +10,19 @@ declare module "@tiptap/core" {
   }
 }
 
-// Color map for named colors to CSS values
-const colorMap: Record<string, string> = {
-  yellow: "#fef08a",
-  green: "#bbf7d0",
-  blue: "#bfdbfe",
-  pink: "#fbcfe8",
-  orange: "#fed7aa",
+// Default highlight color (yellow)
+const DEFAULT_COLOR = "#fef08a";
+
+// Preset colors for quick access (optional, for UI pickers)
+export const highlightPresets: Record<string, string> = {
   purple: "#ddd6fe",
-  red: "#fecaca",
+  blue: "#bfdbfe",
   cyan: "#a5f3fc",
+  green: "#bbf7d0",
+  yellow: "#fef08a",
+  orange: "#fed7aa",
+  pink: "#fbcfe8",
+  red: "#fecaca",
 };
 
 export const Highlight = Mark.create({
@@ -28,8 +31,7 @@ export const Highlight = Mark.create({
   addOptions() {
     return {
       HTMLAttributes: {},
-      colors: Object.keys(colorMap),
-      defaultColor: "yellow",
+      defaultColor: DEFAULT_COLOR,
     };
   },
 
@@ -41,10 +43,9 @@ export const Highlight = Mark.create({
           element.getAttribute("data-color") || this.options.defaultColor,
         renderHTML: (attributes) => {
           const color = attributes.color || this.options.defaultColor;
-          const bgColor = colorMap[color] || color;
           return {
             "data-color": color,
-            style: `background-color: ${bgColor}; padding: 0.125em 0.25em; border-radius: 0.25em;`,
+            style: `background-color: ${color}; padding: 0.125em 0.25em; border-radius: 0.25em;`,
           };
         },
       },
@@ -63,7 +64,7 @@ export const Highlight = Mark.create({
     ];
   },
 
-  // Define a custom Markdown tokenizer to recognize ==text== or ==text=={color}
+  // Define a custom Markdown tokenizer to recognize ==text== or ==text=={#hexcode}
   markdownTokenizer: {
     name: "highlight",
     level: "inline",
@@ -71,8 +72,8 @@ export const Highlight = Mark.create({
     start: (src: string) => src.indexOf("=="),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     tokenize: (src: string, _tokens: any[], lexer: any) => {
-      // Match ==text== or ==text=={color}
-      const match = /^==([^=]+)==(?:\{([^}]+)\})?/.exec(src);
+      // Match ==text== or ==text=={#hex} (supports 3, 4, 6, or 8 digit hex codes)
+      const match = /^==([^=]+)==(?:\{(#[0-9a-fA-F]{3,8})\})?/.exec(src);
       if (!match) return undefined;
 
       return {
@@ -89,7 +90,9 @@ export const Highlight = Mark.create({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   parseMarkdown: (token: any, helpers: any) => {
     const content = helpers.parseInline(token.tokens || []);
-    return helpers.applyMark("highlight", content, { color: token.color });
+    return helpers.applyMark("highlight", content, {
+      color: token.color || DEFAULT_COLOR,
+    });
   },
 
   // Render Tiptap node back to Markdown
@@ -98,7 +101,7 @@ export const Highlight = Mark.create({
     const content = helpers.renderChildren(node.content || []);
     const color = node.attrs?.color;
     // Only include color suffix if it's not the default
-    if (color && color !== "yellow") {
+    if (color && color !== DEFAULT_COLOR) {
       return `==${content}=={${color}}`;
     }
     return `==${content}==`;

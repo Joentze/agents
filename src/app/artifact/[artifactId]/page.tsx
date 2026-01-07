@@ -34,6 +34,9 @@ import { createClient } from "@/utils/supabase/client";
 import { updateArtifact } from "@/app/actions/artifact-actions";
 import { ArtifactBubbleMenu } from "@/components/ai-elements/artifact/menu/artifact-bubble-menu";
 import { Json } from "@/app/types/database.types";
+import { YouTubeDialog } from "@/components/ai-elements/artifact/suggestion/youtube-dialog";
+import { LinkDialog } from "@/components/ai-elements/artifact/suggestion/link-dialog";
+import { FilePicker } from "@/components/ai-elements/artifact/suggestion/file-picker";
 
 function formatTimeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -178,8 +181,12 @@ export default function ArtifactPage({
   const showTrigger = !open || isMobile;
 
   return (
-    <Dialog>
-      <div className="h-screen w-full max-w-full flex flex-col overflow-hidden bg-background">
+    <>
+      <YouTubeDialog />
+      <LinkDialog />
+      <FilePicker />
+      <Dialog>
+        <div className="h-screen w-full max-w-full flex flex-col overflow-hidden bg-background">
         <div className="h-14 p-2 flex flex-row absolute top-0 left-0 w-full z-3 bg-gradient-to-b from-background to-transparent">
           {showTrigger && (
             <SidebarTrigger
@@ -311,5 +318,6 @@ export default function ArtifactPage({
         </ResizablePanelGroup>
       </div>
     </Dialog>
+    </>
   );
 }

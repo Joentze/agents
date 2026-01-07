@@ -47,6 +47,20 @@ async function updateArtifact(
   return data;
 }
 
+async function deleteArtifact(artifactId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("artifact")
+    .delete()
+    .eq("id", artifactId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return { success: true };
+}
+
 async function getArtifacts(page: number = 1, limit: number = 10) {
   const supabase = await createClient();
   const start = (page - 1) * limit;
@@ -257,6 +271,7 @@ export {
   getFolderPath,
   getArtifact,
   updateArtifact,
+  deleteArtifact,
   getArtifacts,
   createArtifactFolder,
   getArtifactFolders,

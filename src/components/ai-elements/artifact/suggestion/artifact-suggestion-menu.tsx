@@ -13,6 +13,7 @@ import {
   Heading3,
   Image,
   Italic,
+  Link,
   List,
   ListCheck,
   ListOrdered,
@@ -25,6 +26,8 @@ import {
   Table,
 } from "lucide-react";
 import { SiYoutube } from "@icons-pack/react-simple-icons";
+import { useYouTubeDialogStore } from "@/stores/use-youtube-dialog";
+import { useFilePickerStore } from "@/stores/use-file-picker";
 
 const updatePosition = (editor: Editor, element: HTMLElement) => {
   const virtualElement = {
@@ -79,25 +82,35 @@ export const suggestionMenu = {
         group: "Media",
         icon: <Image />,
         title: "Image",
-        command: () => {},
-      },
-      {
-        group: "Media",
-        icon: <Map />,
-        title: "Map",
-        command: () => {},
+        command: ({ editor, range }: { editor: Editor; range: any }) => {
+          editor.chain().focus().deleteRange(range).run();
+          useFilePickerStore.getState().triggerPicker(editor, "image");
+        },
       },
       {
         group: "Media",
         icon: <File />,
-        title: "PDF File",
-        command: () => {},
+        title: "File",
+        command: ({ editor, range }: { editor: Editor; range: any }) => {
+          editor.chain().focus().deleteRange(range).run();
+          useFilePickerStore.getState().triggerPicker(editor, "file");
+        },
       },
+      // {
+      //   group: "Media",
+      //   icon: <Map />,
+      //   title: "Map",
+      //   command: () => {},
+      // },
       {
         group: "Media",
         icon: <SiYoutube className="text-red-500" />,
         title: "YouTube Video",
-        command: () => {},
+        command: ({ editor, range }: { editor: Editor; range: any }) => {
+          editor.chain().focus().deleteRange(range).run();
+          // Open the dialog instead of inserting directly
+          useYouTubeDialogStore.getState().openDialog(editor, range);
+        },
       },
 
       {
@@ -185,6 +198,14 @@ export const suggestionMenu = {
         title: "Quote",
         command: ({ editor, range }: { editor: Editor; range: any }) => {
           editor.chain().focus().deleteRange(range).toggleBlockquote().run();
+        },
+      },
+      {
+        group: "Insert",
+        icon: <Link />,
+        title: "Link",
+        command: ({ editor, range }: { editor: Editor; range: any }) => {
+          editor.chain().focus().deleteRange(range).setHorizontalRule().run();
         },
       },
       {

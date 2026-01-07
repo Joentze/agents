@@ -32,7 +32,8 @@ import { FileHandlerExtension } from "@/utils/artifact/file-handler";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { lowlight } from "@/utils/artifact/code-block/lowlight";
-import { Json } from "@/app/types/database.types";
+import Youtube from "@tiptap/extension-youtube";
+import { YouTubeDialog } from "./suggestion/youtube-dialog";
 
 interface ArtifactRendererProps {
   artifactId: string;
@@ -64,6 +65,7 @@ export const getEditor = (
       AIDiffNode,
       FileAttachmentNode,
       Highlight,
+      Youtube,
       CodeBlockLowlight.configure({
         lowlight,
       }),
@@ -96,38 +98,43 @@ export function ArtifactRenderer({
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 10 }}
-      transition={{ duration: 0.2 }}
-      className="flex flex-col max-h-screen"
-    >
-      <Artifact className="my-4 ml-0 mr-4 h-screen">
-        <ArtifactHeader>
-          <div>
-            <ArtifactTitle>{artifact.title}</ArtifactTitle>
-            <ArtifactDescription className="text-sm line-clamp-1">
-              {artifact.description}
-            </ArtifactDescription>
-          </div>
-          <ArtifactActions>
-            <ArtifactAction
-              icon={Share}
-              label="Share"
-              tooltip="Share artifact"
-            />
-            <ArtifactAction
-              icon={X}
-              label="Close"
-              onClick={() => useArtifactStore.getState().clearCurrentArtifact()}
-            />
-          </ArtifactActions>
-        </ArtifactHeader>
-        <ArtifactContent className="">
-          <EditorContent editor={editor} />
-        </ArtifactContent>
-      </Artifact>
-    </motion.div>
+    <>
+      <motion.div
+        initial={{ opacity: 0, x: 10 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: 10 }}
+        transition={{ duration: 0.2 }}
+        className="flex flex-col max-h-screen"
+      >
+        <Artifact className="my-4 ml-0 mr-4 h-screen">
+          <ArtifactHeader>
+            <div>
+              <ArtifactTitle>{artifact.title}</ArtifactTitle>
+              <ArtifactDescription className="text-sm line-clamp-1">
+                {artifact.description}
+              </ArtifactDescription>
+            </div>
+            <ArtifactActions>
+              <ArtifactAction
+                icon={Share}
+                label="Share"
+                tooltip="Share artifact"
+              />
+              <ArtifactAction
+                icon={X}
+                label="Close"
+                onClick={() =>
+                  useArtifactStore.getState().clearCurrentArtifact()
+                }
+              />
+            </ArtifactActions>
+          </ArtifactHeader>
+          <ArtifactContent className="">
+            <EditorContent editor={editor} />
+          </ArtifactContent>
+        </Artifact>
+      </motion.div>
+      <YouTubeDialog />
+    </>
   );
 }

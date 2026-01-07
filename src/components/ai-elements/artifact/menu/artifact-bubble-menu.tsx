@@ -14,7 +14,13 @@ import {
   PenBox,
   Send,
   Highlighter,
+  Check,
+  X,
+  Plus,
+  Link,
 } from "lucide-react";
+import Color from "color";
+import { highlightPresets } from "../custom/highlight";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
@@ -22,6 +28,21 @@ import {
   DropdownMenuPortal,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  ColorPicker,
+  ColorPickerSelection,
+  ColorPickerHue,
+  ColorPickerAlpha,
+  ColorPickerFormat,
+  ColorPickerOutput,
+  ColorPickerEyeDropper,
+} from "@/components/ui/shadcn-io/color-picker";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 
 import {
@@ -30,19 +51,38 @@ import {
   AIHighlightColors,
 } from "./ai/bubble-ai-generate-input";
 import { cn } from "@/lib/utils";
+import { useLinkDialogStore } from "@/stores/use-link-dialog";
+import { range } from "gotenberg-js-client";
 
 interface ArtifactBubbleMenuProps {
   editor: Editor;
 }
 
 export function ArtifactBubbleMenu({ editor }: ArtifactBubbleMenuProps) {
-  const { isBold, isItalic, isUnderline, isTable } = useEditorState({
+  const {
+    isLink,
+    isBold,
+    isItalic,
+    isUnderline,
+    isHighlight,
+    highlightColor,
+    linkUrl,
+    selectedText,
+  } = useEditorState({
     editor,
     selector: (ctx) => ({
+      isLink: ctx.editor.isActive("link"),
       isTable: ctx.editor.isActive("table"),
       isBold: ctx.editor.isActive("bold"),
       isItalic: ctx.editor.isActive("italic"),
       isUnderline: ctx.editor.isActive("underline"),
+      isHighlight: ctx.editor.isActive("highlight"),
+      highlightColor: ctx.editor.getAttributes("highlight")?.color,
+      linkUrl: ctx.editor.getAttributes("link")?.href,
+      selectedText: ctx.editor.state.doc.textBetween(
+        ctx.editor.state.selection.from,
+        ctx.editor.state.selection.to
+      ),
     }),
   });
   const bubbleMenuRef = useRef<HTMLDivElement>(null);
@@ -50,6 +90,10 @@ export function ArtifactBubbleMenu({ editor }: ArtifactBubbleMenuProps) {
   const [aiGenerateOption, setAiGenerateOption] = useState<
     BubbleMenuAIGenerateOptions | undefined
   >(undefined);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const customColorRef = useRef<[number, number, number, number]>([
+    254, 240, 138, 1,
+  ]);
   // Store the highlighted range so we can remove the highlight later
   const highlightedRangeRef = useRef<{ from: number; to: number } | null>(null);
   // Ref to track if highlight is active (for use in callbacks to avoid stale closures)
@@ -136,20 +180,93 @@ export function ArtifactBubbleMenu({ editor }: ArtifactBubbleMenuProps) {
           <>
             <ButtonGroup className="rounded-full">
               <ButtonGroup className="rounded-full">
-                <Button
-                  className={cn("rounded-full", isBold && "bg-accent/50")}
-                  variant={"outline"}
-                  size={"icon-sm"}
-                  onClick={() =>
-                    editor
-                      .chain()
-                      .focus()
-                      .toggleHighlight({ color: "orange" })
-                      .run()
-                  }
-                >
-                  <Highlighter />
-                </Button>
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      className={cn(
+                        "rounded-full",
+                        isHighlight && "bg-accent/50"
+                      )}
+                      variant={"outline"}
+                      size={"icon-sm"}
+                    >
+                      {highlightColor ? (
+                        <div
+                          className="size-4 rounded-full border border-border/50"
+                          style={{ backgroundColor: highlightColor }}
+                        />
+                      ) : (
+                        <Highlighter />
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuPortal
+                    container={bubbleMenuContainerRef.current}
+                  >
+                    <DropdownMenuPrimitive.Content
+                      sideOffset={4}
+                      className="bg-accent mt-1 text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 z-50 overflow-hidden rounded-full border p-1 shadow-md"
+                      onCloseAutoFocus={(e) => {
+                        e.preventDefault();
+                      }}
+                    >
+                      <div className="flex flex-row gap-1">
+                        {Object.entries(highlightPresets).map(
+                          ([name, color]) => (
+                            <DropdownMenuPrimitive.Item
+                              key={name}
+                              className="relative flex cursor-pointer items-center justify-center rounded-full p-0.5 outline-hidden select-none border border-transparent focus:border-border"
+                              onClick={() => {
+                                if (highlightColor === color) {
+                                  editor.chain().focus().unsetHighlight().run();
+                                } else {
+                                  editor
+                                    .chain()
+                                    .focus()
+                                    .setHighlight({ color })
+                                    .run();
+                                }
+                              }}
+                            >
+                              <div
+                                className="size-6 rounded-full flex items-center justify-center transition-transform hover:scale-110"
+                                style={{ backgroundColor: color }}
+                                title={name}
+                              >
+                                {highlightColor === color && (
+                                  <Check className="size-3.5 text-gray-700" />
+                                )}
+                              </div>
+                            </DropdownMenuPrimitive.Item>
+                          )
+                        )}
+                        <DropdownMenuPrimitive.Item
+                          className="relative flex cursor-pointer items-center justify-center rounded-full p-0.5 outline-hidden select-none border border-transparent"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setColorPickerOpen(true);
+                          }}
+                        >
+                          <div className="size-6 rounded-full flex items-center justify-center border border-dashed border-border bg-background transition-transform hover:scale-110">
+                            <Plus className="size-3.5 text-muted-foreground" />
+                          </div>
+                        </DropdownMenuPrimitive.Item>
+                        {isHighlight && (
+                          <DropdownMenuPrimitive.Item
+                            className="relative flex cursor-pointer items-center justify-center rounded-full p-0.5 outline-hidden select-none border border-transparent"
+                            onClick={() => {
+                              editor.chain().focus().unsetHighlight().run();
+                            }}
+                          >
+                            <div className="size-6 rounded-full flex items-center justify-center border border-border bg-background ">
+                              <X className="size-3.5 text-muted-foreground" />
+                            </div>
+                          </DropdownMenuPrimitive.Item>
+                        )}
+                      </div>
+                    </DropdownMenuPrimitive.Content>
+                  </DropdownMenuPortal>
+                </DropdownMenu>
                 <Button
                   className={cn("rounded-full", isBold && "bg-accent/50")}
                   variant={"outline"}
@@ -174,7 +291,21 @@ export function ArtifactBubbleMenu({ editor }: ArtifactBubbleMenuProps) {
                 >
                   <Underline />
                 </Button>
-
+                <Button
+                  className={cn("", isLink && "bg-accent/50")}
+                  variant={"outline"}
+                  size={"icon-sm"}
+                  onClick={() =>
+                    useLinkDialogStore
+                      .getState()
+                      .openDialog(editor, editor.state.selection, {
+                        defaultUrl: linkUrl,
+                        defaultText: selectedText,
+                      })
+                  }
+                >
+                  <Link />
+                </Button>
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -252,6 +383,53 @@ export function ArtifactBubbleMenu({ editor }: ArtifactBubbleMenuProps) {
           <BubbleAIGenerateInput option={aiGenerateOption} editor={editor} />
         )}
       </motion.div>
+
+      <Dialog open={colorPickerOpen} onOpenChange={setColorPickerOpen}>
+        <DialogContent className="sm:max-w-[320px]">
+          <DialogHeader>
+            <DialogTitle>Custom Highlight Color</DialogTitle>
+          </DialogHeader>
+          <ColorPicker
+            defaultValue={highlightColor || "#fef08a"}
+            onChange={(rgba) => {
+              customColorRef.current = rgba as [number, number, number, number];
+            }}
+            className="gap-3"
+          >
+            <ColorPickerSelection className="h-32 rounded-lg" />
+            <ColorPickerHue />
+            <ColorPickerAlpha />
+            <div className="flex items-center gap-2">
+              <ColorPickerEyeDropper />
+              <ColorPickerOutput />
+              <ColorPickerFormat className="flex-1" />
+            </div>
+          </ColorPicker>
+          <div className="flex justify-end gap-2 mt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setColorPickerOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                const hexColor = Color.rgb(
+                  customColorRef.current[0],
+                  customColorRef.current[1],
+                  customColorRef.current[2]
+                ).hex();
+                editor.chain().focus().setHighlight({ color: hexColor }).run();
+                setColorPickerOpen(false);
+              }}
+            >
+              Apply
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </BubbleMenu>
   );
 }
