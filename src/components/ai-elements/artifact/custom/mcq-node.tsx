@@ -97,18 +97,17 @@ const MCQQuestion = ({
   );
 };
 
-const MCQComponent = ({ HTMLAttributes, node }: ReactNodeViewProps) => {
-  const { content } = HTMLAttributes;
+const MCQComponent = ({ node }: ReactNodeViewProps) => {
+  const mcqContent = node.content.toJSON()[0].content[0].text;
   const addMcqSet = useMcqStore((state) => state.addMcqSet);
   const mcqs = useMcqStore((state) => state.mcqs);
   const resetMcqSet = useMcqStore((state) => state.resetMcqSet);
   const [questionIndex, setQuestionIndex] = useState<number>(0);
 
-  if (!content) {
+  if (!mcqContent) {
     return null;
   }
 
-  const decodedContent = Buffer.from(content, "base64").toString("utf-8");
   const parsedContent: {
     id: string;
     questions: Array<{
@@ -118,7 +117,7 @@ const MCQComponent = ({ HTMLAttributes, node }: ReactNodeViewProps) => {
         isCorrect: boolean;
       }>;
     }>;
-  } = JSON.parse(decodedContent);
+  } = JSON.parse(mcqContent);
 
   // Use content as unique ID for this MCQ set
   const mcqSetId = parsedContent.id;

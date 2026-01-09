@@ -24,6 +24,8 @@ import {
   ChevronUp,
   ChevronDown,
   EllipsisVertical,
+  ArrowLeft,
+  ArrowRight,
 } from "lucide-react";
 import { ButtonGroup } from "../button-group";
 import {
@@ -47,9 +49,13 @@ interface PDFToolbarProps {
   pageNavigationPluginInstance: PageNavigationPlugin;
   fullScreenPluginInstance: FullScreenPlugin;
   getFilePluginInstance: GetFilePlugin;
+  onSwap: () => void;
+  isRight: boolean;
 }
 
 export const PDFToolbar: React.FC<PDFToolbarProps> = ({
+  onSwap,
+  isRight,
   onClose,
   filename,
   currentPage,
@@ -95,7 +101,6 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
       });
 
       setMatchCount(matches.length);
-      console.log(`Found ${matches.length} matches for "${keyword}"`);
 
       // Automatically jump to first match if found
       if (matches.length > 0) {
@@ -163,7 +168,27 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
       <span className="text-md font-medium hidden sm:inline text-muted-foreground text-ellipsis overflow-hidden whitespace-nowrap p-2">
         {filename}
       </span>
+
       <div className="flex gap-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={"ghost"}
+              onClick={onSwap}
+              size={"icon"}
+              className="my-auto rounded-full"
+            >
+              {isRight ? (
+                <ArrowLeft className="text-muted-foreground" />
+              ) : (
+                <ArrowRight className="text-muted-foreground" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {isRight ? "Shift to left" : "Shift to right"}
+          </TooltipContent>
+        </Tooltip>
         {/* Page Navigation */}
         <ButtonGroup className="my-auto rounded-full">
           <GoToPreviousPage>

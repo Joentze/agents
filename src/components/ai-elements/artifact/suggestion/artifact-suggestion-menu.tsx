@@ -270,18 +270,18 @@ export const suggestionMenu = {
 
       onKeyDown(props: { event: KeyboardEvent }) {
         if (props.event.key === "Escape") {
-          popup.remove();
-          component.destroy();
+          popup?.remove();
+          component?.destroy();
 
           return true;
         }
 
-        return component.ref?.onKeyDown(props) ?? false;
+        return component?.ref?.onKeyDown(props) ?? false;
       },
 
       onExit() {
-        popup.remove();
-        component.destroy();
+        popup?.remove();
+        component?.destroy();
       },
     };
   },

@@ -55,19 +55,19 @@ const FlashCard = ({
   );
 };
 
-const FlashCardComponent = ({ HTMLAttributes }: ReactNodeViewProps) => {
-  const { content } = HTMLAttributes;
+const FlashCardComponent = ({ node }: ReactNodeViewProps) => {
+  const flashCardContent = node.content.toJSON()[0].content[0].text;
+
   const [cardIndex, setCardIndex] = useState<number>(0);
 
-  if (!content) {
+  if (!flashCardContent) {
     return null;
   }
 
-  const decodedContent = Buffer.from(content, "base64").toString("utf-8");
   const parsedContent: {
     title: string;
     cards: Array<{ question: string; answer: string }>;
-  } = JSON.parse(decodedContent);
+  } = JSON.parse(flashCardContent);
 
   const handleReset = () => {
     setCardIndex(0);

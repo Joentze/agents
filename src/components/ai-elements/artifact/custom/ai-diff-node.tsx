@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  EditorContent,
   NodeViewWrapper,
   ReactNodeViewProps,
   ReactNodeViewRenderer,
@@ -10,9 +11,10 @@ import { Check, X, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "motion/react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { marked } from "marked";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { getEditor } from "../artifact-renderer";
 
 interface DiffSegment {
   type: "added" | "removed" | "unchanged";
@@ -29,11 +31,11 @@ const AIDiffComponent = ({ node, editor, getPos }: ReactNodeViewProps) => {
   const attrs = node.attrs as AIDiffNodeAttrs;
   const { originalContent, newContent, diffs } = attrs;
   const [showDiff, setShowDiff] = useState(false);
-
+  const diffEditor = getEditor();
   // Parse markdown to HTML for preview
-  const renderedMarkdown = useMemo(() => {
-    return marked.parse(newContent, { async: false }) as string;
-  }, [newContent]);
+  // const renderedMarkdown = useMemo(() => {
+  //   return marked.parse(newContent, { async: false }) as string;
+  // }, [newContent]);
 
   // Helper to insert markdown content at a position
   const insertMarkdownAt = (pos: number, markdown: string) => {
@@ -54,7 +56,14 @@ const AIDiffComponent = ({ node, editor, getPos }: ReactNodeViewProps) => {
       editor.chain().focus().insertContentAt(pos, markdown).run();
     }
   };
-
+  useEffect(() => {
+    if (diffEditor) {
+      diffEditor?.commands.setContent(newContent, {
+        emitUpdate: false,
+        contentType: "markdown",
+      });
+    }
+  }, [newContent, diffEditor]);
   const handleApprove = () => {
     const pos = typeof getPos === "function" ? getPos() : undefined;
     if (pos === undefined) return;
@@ -93,13 +102,10 @@ const AIDiffComponent = ({ node, editor, getPos }: ReactNodeViewProps) => {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="border-2 border-indigo-500/50 rounded-lg overflow-hidden "
+        className="border-2 border-indigo-500/50 rounded-lg overflow-hidden shadow shadow-md"
       >
         {/* Rendered Markdown Content */}
-        <div
-          className="p-3 prose prose-sm dark:prose-invert max-w-none"
-          dangerouslySetInnerHTML={{ __html: renderedMarkdown }}
-        />
+        <EditorContent editor={diffEditor} className="m-4" />
 
         {/* Collapsible Diff View */}
         <AnimatePresence>
@@ -116,7 +122,7 @@ const AIDiffComponent = ({ node, editor, getPos }: ReactNodeViewProps) => {
                   Changes
                 </div>
                 <div className="p-3 font-mono text-sm leading-relaxed whitespace-pre-wrap">
-                  {diffs.map((diff, index) => {
+                  {diffs?.map((diff, index) => {
                     if (diff.type === "added") {
                       return (
                         <span
@@ -171,19 +177,19 @@ const AIDiffComponent = ({ node, editor, getPos }: ReactNodeViewProps) => {
               size="icon-sm"
               variant="ghost"
               className=""
-              onClick={handleApprove}
-              title="Accept changes"
+              onClick={handleReject}
+              title="Reject changes"
             >
-              <Check className="text-green-500" />
+              <X className="text-red-500" />
             </Button>
             <Button
               size="icon-sm"
               variant="ghost"
               className=""
-              onClick={handleReject}
-              title="Reject changes"
+              onClick={handleApprove}
+              title="Accept changes"
             >
-              <X className="text-red-500" />
+              <Check className="text-green-500" />
             </Button>
           </ButtonGroup>
         </div>

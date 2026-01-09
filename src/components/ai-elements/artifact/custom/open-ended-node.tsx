@@ -75,22 +75,21 @@ const OpenEndedQuestion = ({
   );
 };
 
-const OpenEndedComponent = ({ HTMLAttributes, node }: ReactNodeViewProps) => {
-  const { content } = HTMLAttributes;
+const OpenEndedComponent = ({ node }: ReactNodeViewProps) => {
+  const openEndedContent = node.content.toJSON()[0].content[0].text;
   const [questionIndex, setQuestionIndex] = useState<number>(0);
 
-  if (!content) {
+  if (!openEndedContent) {
     return null;
   }
 
-  const decodedContent = Buffer.from(content, "base64").toString("utf-8");
   const parsedContent: {
     id: string;
     questions: Array<{
       question: string;
       placeholder?: string;
     }>;
-  } = JSON.parse(decodedContent);
+  } = JSON.parse(openEndedContent);
 
   const handleReset = () => {
     // TODO: Reset all answers in store

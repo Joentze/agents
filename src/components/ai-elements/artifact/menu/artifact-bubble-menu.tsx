@@ -53,6 +53,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useLinkDialogStore } from "@/stores/use-link-dialog";
 import { range } from "gotenberg-js-client";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 
 interface ArtifactBubbleMenuProps {
   editor: Editor;
@@ -314,7 +315,10 @@ export function ArtifactBubbleMenu({ editor }: ArtifactBubbleMenuProps) {
                       className="dark:text-indigo-400 text-indigo-500 hover:text-indigo-600 rounded-full"
                     >
                       <Sparkle className="" />
-                      Generate
+                      Agent
+                      <KbdGroup>
+                        <Kbd>⌘ + J</Kbd>
+                      </KbdGroup>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuPortal
@@ -331,7 +335,7 @@ export function ArtifactBubbleMenu({ editor }: ArtifactBubbleMenuProps) {
                         className="focus:bg-accent-foreground/10 relative flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none hover:bg-accent-foreground/10"
                         onClick={(e) => {
                           // Generate Content logic here
-                          handleSetAiGenerateOption("content");
+                          // handleSetAiGenerateOption("content");
                         }}
                       >
                         <Sparkle className="text-indigo-500 size-4" />
@@ -342,7 +346,7 @@ export function ArtifactBubbleMenu({ editor }: ArtifactBubbleMenuProps) {
                         onClick={(e) => {
                           e.preventDefault();
                           // Generate Flash Cards logic here
-                          handleSetAiGenerateOption("flash-cards");
+                          // handleSetAiGenerateOption("flash-cards");
                         }}
                       >
                         <SwatchBook className="text-orange-500 size-4" />
@@ -353,7 +357,7 @@ export function ArtifactBubbleMenu({ editor }: ArtifactBubbleMenuProps) {
                         onClick={(e) => {
                           e.preventDefault();
                           // Generate MCQs logic here
-                          handleSetAiGenerateOption("mcqs");
+                          // handleSetAiGenerateOption("mcqs");
                         }}
                       >
                         <ListCheck className="text-green-500 size-4" />

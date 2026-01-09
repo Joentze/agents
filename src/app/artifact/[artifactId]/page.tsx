@@ -37,6 +37,10 @@ import { Json } from "@/app/types/database.types";
 import { YouTubeDialog } from "@/components/ai-elements/artifact/suggestion/youtube-dialog";
 import { LinkDialog } from "@/components/ai-elements/artifact/suggestion/link-dialog";
 import { FilePicker } from "@/components/ai-elements/artifact/suggestion/file-picker";
+import { useArtifactAgentSidebar } from "@/hooks/artifact/use-artifact-agent-sidebar";
+import ArtifactAgentChatPanel from "@/components/ai-elements/artifact/agent/artifact-agent-chat-panel";
+import { parseArtifactAgentContent } from "@/utils/artifact/artifact-agent-content-parser";
+import { PromptInputTextarea } from "@/components/ai-elements/prompt-input";
 
 function formatTimeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -78,13 +82,25 @@ export default function ArtifactPage({
     jsonContent as unknown as JSONContent | null
   );
   const { open, setOpen } = useSidebar();
+  const {
+    open: agentSidebarOpen,
+    setOpen: setAgentSidebarOpen,
+    addArtifactFile,
+    addArtifactContent,
+  } = useArtifactAgentSidebar();
   const isMobile = useIsMobile();
-  const { isOpen: fileOpen, fileUrl, fileName, closeFile } = useFileViewer();
+  const {
+    isOpen: fileOpen,
+    fileUrl,
+    fileName,
+    closeFile,
+    isRight,
+  } = useFileViewer();
   const [isPublic, setIsPublic] = useState<boolean>(isArtifactPublic);
   const [lastEdited, setLastEdited] = useState<Date | null>(null);
   const [timeAgoText, setTimeAgoText] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
-
+  const agentChatInputRef = useRef<HTMLTextAreaElement | null>(null);
   const titleRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -178,6 +194,31 @@ export default function ArtifactPage({
     return () => clearInterval(interval);
   }, [lastEdited]);
 
+  // Keyboard shortcut: Cmd/Ctrl + L to toggle agent sidebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && agentSidebarOpen) {
+        e.preventDefault();
+        setAgentSidebarOpen(false);
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "j") {
+        e.preventDefault();
+        setAgentSidebarOpen(true);
+        // get the current selected content
+        // have a functiomn that parses for files and gets the text
+        // adds the files and text to the state manager, have the pills added to the chat input
+        if (editor) {
+          const { text, files, pos } = parseArtifactAgentContent(editor);
+          files.forEach((file) => addArtifactFile(file));
+          addArtifactContent(text);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [agentSidebarOpen, setAgentSidebarOpen]);
+
   const showTrigger = !open || isMobile;
 
   return (
@@ -187,137 +228,204 @@ export default function ArtifactPage({
       <FilePicker />
       <Dialog>
         <div className="h-screen w-full max-w-full flex flex-col overflow-hidden bg-background">
-        <div className="h-14 p-2 flex flex-row absolute top-0 left-0 w-full z-3 bg-gradient-to-b from-background to-transparent">
-          {showTrigger && (
-            <SidebarTrigger
-              className="my-auto"
-              onClick={() => setOpen(!open)}
-            />
-          )}
-          <div className="flex flex-row gap-2 ml-auto">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              {isSaving && (
-                <p className="text-sm text-muted-foreground animate-pulse">
-                  Saving...
-                </p>
-              )}
-              {!isSaving && lastEdited && (
-                <p className="text-sm text-muted-foreground">
-                  Edited {timeAgoText}
-                </p>
-              )}
-            </div>
-            <DialogTrigger asChild>
-              <Button variant={"ghost"} className="">
-                <Share />
-                Share
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Share Artifact</DialogTitle>
-                <DialogDescription>
-                  Make artifact public to share with others
-                </DialogDescription>
-              </DialogHeader>
-              <div className="rounded-md w-full bg-accent/50 border border-border p-4">
-                <div className="flex items-center space-x-2 ">
-                  <Label htmlFor="public-artifact">
-                    Make artifact {isPublic ? "private" : "public"}?
-                  </Label>
-                  <Switch
-                    id="public-artifact"
-                    className="ml-auto"
-                    checked={isPublic}
-                    onCheckedChange={async (checked) => {
-                      await updateArtifactPublicity({ isPublic: checked });
-                    }}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  disabled={!isPublic}
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      `${window.location.origin}/artifact/${id}`
-                    );
-                  }}
-                >
-                  <Link />
-                  Copy Link
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </div>
-        </div>
-        <ResizablePanelGroup
-          direction="horizontal"
-          className="h-full w-full overflow-hidden"
-        >
-          <ResizablePanel
-            defaultSize={fileOpen ? 50 : 100}
-            minSize={25}
-            className="h-full min-w-0"
+          <ResizablePanelGroup
+            key={agentSidebarOpen ? "agent-open" : "agent-closed"}
+            direction="horizontal"
+            className="h-full w-full overflow-hidden"
           >
-            <div className="h-full w-full max-w-full overflow-y-auto overflow-x-hidden">
-              <div
-                className={cn(
-                  "pb-24 max-w-full",
-                  showTrigger ? "pt-12" : "pt-4"
-                )}
-              >
-                <div
-                  className={cn(
-                    "md:mx-24 lg:mx-56 mx-6 border-b border-border flex flex-col gap-2 pb-10 mt-8 max-w-full",
-                    fileOpen && "md:mx-6 lg:mx-6 mx-6"
-                  )}
-                >
-                  <div
-                    ref={titleRef}
-                    contentEditable
-                    suppressContentEditableWarning
-                    onInput={handleTitleChange}
-                    className="md:text-3xl text-2xl font-bold line-clamp-1 focus:outline-none"
-                  >
-                    {title}
-                  </div>
-                </div>
-                {editor && <ArtifactBubbleMenu editor={editor as Editor} />}
-                <DragHandle editor={editor as Editor}>
-                  <Button variant={"ghost"} size={"icon"} className="mr-8 w-5 ">
-                    <GripVertical />
-                  </Button>
-                </DragHandle>
-                <EditorContent
-                  editor={editor}
-                  className={cn(
-                    "md:px-24 lg:px-56 px-6 max-w-full",
-                    fileOpen && "md:px-6 lg:px-6 px-6"
-                  )}
-                />
-              </div>
-            </div>
-          </ResizablePanel>
-          {fileOpen && (
-            <ResizableHandle withHandle className="bg-transparent" />
-          )}
-          {fileOpen && fileUrl && fileName && (
             <ResizablePanel
-              defaultSize={50}
-              minSize={25}
-              className="h-full min-w-0 p-4 pt-14 overflow-hidden"
+              defaultSize={agentSidebarOpen ? 80 : 100}
+              minSize={50}
+              className="h-full min-w-0 relative"
             >
-              <PDFViewer
-                onClose={closeFile}
-                fileUrl={fileUrl}
-                fileName={fileName}
-              />
+              <div className="h-14 p-2 flex flex-row absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-background to-transparent">
+                {showTrigger && (
+                  <SidebarTrigger
+                    className="my-auto"
+                    onClick={() => setOpen(!open)}
+                  />
+                )}
+                <div className="flex flex-row gap-2 ml-auto">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    {isSaving && (
+                      <p className="text-sm text-muted-foreground animate-pulse">
+                        Saving...
+                      </p>
+                    )}
+                    {!isSaving && lastEdited && (
+                      <p className="text-sm text-muted-foreground">
+                        Edited {timeAgoText}
+                      </p>
+                    )}
+                  </div>
+                  <DialogTrigger asChild>
+                    <Button variant={"ghost"} className="">
+                      <Share />
+                      Share
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Share Artifact</DialogTitle>
+                      <DialogDescription>
+                        Make artifact public to share with others
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="rounded-md w-full bg-accent/50 border border-border p-4">
+                      <div className="flex items-center space-x-2 ">
+                        <Label htmlFor="public-artifact">
+                          Make artifact {isPublic ? "private" : "public"}?
+                        </Label>
+                        <Switch
+                          id="public-artifact"
+                          className="ml-auto"
+                          checked={isPublic}
+                          onCheckedChange={async (checked) => {
+                            await updateArtifactPublicity({
+                              isPublic: checked,
+                            });
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        disabled={!isPublic}
+                        onClick={() => {
+                          navigator.clipboard.writeText(
+                            `${window.location.origin}/artifact/${id}`
+                          );
+                        }}
+                      >
+                        <Link />
+                        Copy Link
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </div>
+              </div>
+              <ResizablePanelGroup
+                key={isRight ? "pdf-right" : "pdf-left"}
+                direction="horizontal"
+                className="h-full w-full overflow-hidden"
+              >
+                {/* PDF Viewer on the left when isRight is false */}
+                {!isRight && fileOpen && fileUrl && fileName && (
+                  <ResizablePanel
+                    defaultSize={50}
+                    minSize={25}
+                    className="h-full min-w-0 p-4 pt-14 overflow-hidden"
+                  >
+                    <PDFViewer
+                      isRight={isRight}
+                      onSwap={() =>
+                        useFileViewer.setState({ isRight: !isRight })
+                      }
+                      onClose={closeFile}
+                      fileUrl={fileUrl}
+                      fileName={fileName}
+                    />
+                  </ResizablePanel>
+                )}
+                {!isRight && fileOpen && (
+                  <ResizableHandle withHandle className="bg-transparent" />
+                )}
+
+                {/* Editor Panel */}
+                <ResizablePanel
+                  defaultSize={fileOpen ? 50 : 100}
+                  minSize={25}
+                  className="h-full min-w-0"
+                >
+                  <div className="h-full w-full max-w-full overflow-y-auto overflow-x-hidden">
+                    <div
+                      className={cn(
+                        "pb-24 max-w-full",
+                        showTrigger ? "pt-12" : "pt-4"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "md:mx-24 lg:mx-56 mx-6 border-b border-border flex flex-col gap-2 pb-10 mt-8 max-w-full",
+                          fileOpen && "md:mx-6 lg:mx-6 mx-6"
+                        )}
+                      >
+                        <div
+                          ref={titleRef}
+                          contentEditable
+                          suppressContentEditableWarning
+                          onInput={handleTitleChange}
+                          className="md:text-3xl text-2xl font-bold line-clamp-1 focus:outline-none"
+                        >
+                          {title}
+                        </div>
+                      </div>
+                      {editor && (
+                        <ArtifactBubbleMenu editor={editor as Editor} />
+                      )}
+                      <DragHandle editor={editor as Editor}>
+                        <Button
+                          variant={"ghost"}
+                          size={"icon"}
+                          className="mr-8 w-5 "
+                        >
+                          <GripVertical />
+                        </Button>
+                      </DragHandle>
+                      <EditorContent
+                        editor={editor}
+                        className={cn(
+                          "md:px-24 lg:px-56 px-6 max-w-full",
+                          fileOpen && "md:px-6 lg:px-6 px-6"
+                        )}
+                      />
+                    </div>
+                  </div>
+                </ResizablePanel>
+
+                {/* PDF Viewer on the right when isRight is true */}
+                {isRight && fileOpen && (
+                  <ResizableHandle withHandle className="bg-transparent" />
+                )}
+                {isRight && fileOpen && fileUrl && fileName && (
+                  <ResizablePanel
+                    defaultSize={50}
+                    minSize={25}
+                    className="h-full min-w-0 p-4 pt-14 overflow-hidden"
+                  >
+                    <PDFViewer
+                      isRight={isRight}
+                      onSwap={() =>
+                        useFileViewer.setState({ isRight: !isRight })
+                      }
+                      onClose={closeFile}
+                      fileUrl={fileUrl}
+                      fileName={fileName}
+                    />
+                  </ResizablePanel>
+                )}
+              </ResizablePanelGroup>
             </ResizablePanel>
-          )}
-        </ResizablePanelGroup>
-      </div>
-    </Dialog>
+
+            {/* Agent Sidebar Panel */}
+            {agentSidebarOpen && (
+              <>
+                <ResizableHandle withHandle />
+                <ResizablePanel
+                  defaultSize={20}
+                  minSize={15}
+                  maxSize={40}
+                  className="h-full min-w-0"
+                >
+                  <div className="h-screen w-full overflow-y-auto">
+                    <ArtifactAgentChatPanel ref={agentChatInputRef} autoFocus />
+                  </div>
+                </ResizablePanel>
+              </>
+            )}
+          </ResizablePanelGroup>
+        </div>
+      </Dialog>
     </>
   );
 }

@@ -83,6 +83,7 @@ import {
 export type AttachmentsContext = {
   files: (FileUIPart & { id: string })[];
   add: (files: File[] | FileList) => void;
+  addParts: (parts: FileUIPart[]) => void;
   remove: (id: string) => void;
   clear: () => void;
   openFileDialog: () => void;
@@ -196,8 +197,8 @@ export function PromptInputProvider({
             id: nanoid(),
             type: "file" as const,
             url: data.url, // Use the blob URL from Vercel Blob
-            mediaType: data.finalMimeType || file.type, // Use converted MIME type if available
-            filename: data.originalFilename || file.name, // Keep original filename for display
+            mediaType: file.type,
+            filename: file.name,
           };
         } catch (error) {
           console.error("File upload error:", error);
@@ -214,6 +215,19 @@ export function PromptInputProvider({
     );
 
     setAttachements((prev) => prev.concat(uploadedFiles));
+  }, []);
+
+  const addParts = useCallback((parts: FileUIPart[]) => {
+    const withIds = parts.map((part) => ({
+      ...part,
+      id: part.url || nanoid(),
+    }));
+    setAttachements((prev) => {
+      // Filter out duplicates by id
+      const existingIds = new Set(prev.map((f) => f.id));
+      const newParts = withIds.filter((p) => !existingIds.has(p.id));
+      return prev.concat(newParts);
+    });
   }, []);
 
   const remove = useCallback((id: string) => {
@@ -239,12 +253,13 @@ export function PromptInputProvider({
     () => ({
       files: attachements,
       add,
+      addParts,
       remove,
       clear,
       openFileDialog,
       fileInputRef,
     }),
-    [attachements, add, remove, clear, openFileDialog]
+    [attachements, add, addParts, remove, clear, openFileDialog]
   );
 
   const __registerFileInput = useCallback(
@@ -607,8 +622,8 @@ export const PromptInput = ({
               id: nanoid(),
               type: "file" as const,
               url: data.url, // Use the blob URL from Vercel Blob
-              mediaType: data.finalMimeType || file.type, // Use converted MIME type if available
-              filename: data.originalFilename || file.name, // Keep original filename for display
+              mediaType: file.type,
+              filename: file.name,
             };
           } catch (error) {
             console.error("File upload error:", error);
@@ -629,9 +644,26 @@ export const PromptInput = ({
     [matchesAccept, maxFiles, maxFileSize, onError, items.length]
   );
 
+  const addPartsLocal = useCallback((parts: FileUIPart[]) => {
+    const withIds = parts.map((part) => ({
+      ...part,
+      id: part.url || nanoid(),
+    }));
+    setItems((prev) => {
+      // Filter out duplicates by id
+      const existingIds = new Set(prev.map((f) => f.id));
+      const newParts = withIds.filter((p) => !existingIds.has(p.id));
+      return prev.concat(newParts);
+    });
+  }, []);
+
   const add = usingProvider
     ? (files: File[] | FileList) => controller.attachments.add(files)
     : addLocal;
+
+  const addParts = usingProvider
+    ? (parts: FileUIPart[]) => controller.attachments.addParts(parts)
+    : addPartsLocal;
 
   const remove = usingProvider
     ? (id: string) => controller.attachments.remove(id)
@@ -756,12 +788,13 @@ export const PromptInput = ({
     () => ({
       files: files.map((item) => ({ ...item, id: item.id })),
       add,
+      addParts,
       remove,
       clear,
       openFileDialog,
       fileInputRef: inputRef,
     }),
-    [files, add, remove, clear, openFileDialog]
+    [files, add, addParts, remove, clear, openFileDialog]
   );
 
   const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {

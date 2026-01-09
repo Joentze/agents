@@ -158,11 +158,7 @@ const artifactTool = ({ chatId, writer }: ArtifactToolParams) =>
             break;
           case "tool-call":
             if (chunk.toolName === "flashCardTool") {
-              const component = `:::flashcard {type="${
-                chunk.toolName
-              }" content="${Buffer.from(JSON.stringify(chunk.input)).toString(
-                "base64"
-              )}"}
+              const component = `:::flashcard {type="${chunk.toolName}"}
 
 ${JSON.stringify(chunk.input)}
 
@@ -188,14 +184,7 @@ ${JSON.stringify(chunk.input)}
               });
               content += component;
             } else if (chunk.toolName === "mcqTool") {
-              const component = `:::mcq {type="${
-                chunk.toolName
-              }" content="${Buffer.from(
-                JSON.stringify({
-                  ...(chunk.input as object),
-                  id: chunk.toolCallId,
-                })
-              ).toString("base64")}"}
+              const component = `:::mcq {type="${chunk.toolName}"}
 
 ${JSON.stringify({
   ...(chunk.input as object),
@@ -224,14 +213,7 @@ ${JSON.stringify({
               });
               content += component;
             } else if (chunk.toolName === "openEndedTool") {
-              const component = `:::openended {type="${
-                chunk.toolName
-              }" content="${Buffer.from(
-                JSON.stringify({
-                  ...(chunk.input as object),
-                  id: chunk.toolCallId,
-                })
-              ).toString("base64")}"}
+              const component = `:::openended {type="${chunk.toolName}"}
 
 ${JSON.stringify({
   ...(chunk.input as object),

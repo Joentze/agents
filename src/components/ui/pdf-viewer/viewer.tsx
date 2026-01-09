@@ -22,12 +22,16 @@ interface PDFViewerProps {
   fileUrl: string;
   fileName?: string;
   onClose: () => void;
+  isRight: boolean;
+  onSwap: () => void;
 }
 
 export const PDFViewer: React.FC<PDFViewerProps> = ({
   fileUrl,
   fileName = "document.pdf",
   onClose,
+  onSwap,
+  isRight,
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -69,6 +73,8 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
           <X />
         </Button>
         <PDFToolbar
+          onSwap={onSwap}
+          isRight={isRight}
           onClose={onClose}
           filename={fileName}
           currentPage={currentPage}

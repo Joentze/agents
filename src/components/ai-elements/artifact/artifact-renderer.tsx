@@ -44,7 +44,6 @@ export const getEditor = (
   defaultContent?: string,
   defaultJsonContent?: JSONContent | null
 ) => {
-  console.log(defaultJsonContent);
   return useEditor({
     immediatelyRender: false,
     extensions: [
@@ -75,6 +74,10 @@ export const getEditor = (
     ],
     contentType: "markdown",
     content: defaultContent || "",
+    // use for when we want to store data with custom blocks
+    // onDelete: ({ node }) => {
+    //   console.log(node.type.name);
+    // },
   });
 };
 export function ArtifactRenderer({

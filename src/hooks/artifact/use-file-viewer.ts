@@ -6,9 +6,11 @@ interface FileViewerState {
   fileName: string | null;
   openFile: (url: string, name: string) => void;
   closeFile: () => void;
+  isRight: boolean;
 }
 
 export const useFileViewer = create<FileViewerState>((set) => ({
+  isRight: true,
   isOpen: false,
   fileUrl: null,
   fileName: null,
@@ -16,4 +18,3 @@ export const useFileViewer = create<FileViewerState>((set) => ({
     set({ isOpen: true, fileUrl: url, fileName: name }),
   closeFile: () => set({ isOpen: false, fileUrl: null, fileName: null }),
 }));
-
