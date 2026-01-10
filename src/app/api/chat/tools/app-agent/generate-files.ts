@@ -151,7 +151,7 @@ async function generateFileContents({
       files: z.array(fileSchema).describe("The files to generate"),
     }),
     messages: [
-      ...convertToModelMessages(messages),
+      ...(await convertToModelMessages(messages)),
       {
         role: "user",
         content: `Generate the content of the following files: ${paths.map(

@@ -82,7 +82,7 @@ export async function POST(req: Request) {
             title: z.string(),
           }),
           system: `Generate a simple title for the chat based on the conversation history`,
-          messages: convertToModelMessages(messages),
+          messages: await convertToModelMessages(messages),
         }).then(async ({ object: { title } }) => {
           await updateChat(chatId, { name: title });
         });
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
       // Merge another stream from streamText
       const result = streamText({
         model: "anthropic/claude-haiku-4.5",
-        messages: convertToModelMessages(messages),
+        messages: await convertToModelMessages(messages),
         stopWhen: stepCountIs(10),
         system: `You are a helpful assistant. Follow these instructions:
         - Use the agentic search tool to find information.
