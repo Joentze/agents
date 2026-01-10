@@ -194,7 +194,7 @@ export default function ArtifactPage({
     return () => clearInterval(interval);
   }, [lastEdited]);
 
-  // Keyboard shortcut: Cmd/Ctrl + L to toggle agent sidebar
+  // Keyboard shortcut: Cmd/Ctrl + J to toggle agent sidebar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && agentSidebarOpen) {
@@ -203,21 +203,29 @@ export default function ArtifactPage({
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "j") {
         e.preventDefault();
-        setAgentSidebarOpen(true);
+
         // get the current selected content
-        // have a functiomn that parses for files and gets the text
-        // adds the files and text to the state manager, have the pills added to the chat input
+        // parse for files and text, add to state manager for chat input pills
         if (editor) {
-          const { text, files, pos } = parseArtifactAgentContent(editor);
+          const { text, files, id } = parseArtifactAgentContent(editor);
           files.forEach((file) => addArtifactFile(file));
-          addArtifactContent(text);
+          if (text.trim().length > 0) {
+            addArtifactContent(text, id);
+          }
         }
+        setAgentSidebarOpen(true);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [agentSidebarOpen, setAgentSidebarOpen]);
+  }, [
+    agentSidebarOpen,
+    setAgentSidebarOpen,
+    editor,
+    addArtifactFile,
+    addArtifactContent,
+  ]);
 
   const showTrigger = !open || isMobile;
 
@@ -229,7 +237,6 @@ export default function ArtifactPage({
       <Dialog>
         <div className="h-screen w-full max-w-full flex flex-col overflow-hidden bg-background">
           <ResizablePanelGroup
-            key={agentSidebarOpen ? "agent-open" : "agent-closed"}
             direction="horizontal"
             className="h-full w-full overflow-hidden"
           >
@@ -418,7 +425,11 @@ export default function ArtifactPage({
                   className="h-full min-w-0"
                 >
                   <div className="h-screen w-full overflow-y-auto">
-                    <ArtifactAgentChatPanel ref={agentChatInputRef} autoFocus />
+                    <ArtifactAgentChatPanel
+                      ref={agentChatInputRef}
+                      autoFocus
+                      editor={editor as Editor}
+                    />
                   </div>
                 </ResizablePanel>
               </>

@@ -1,8 +1,10 @@
 import { Editor, Range } from "@tiptap/core";
 import { FileUIPart } from "ai";
 import { JSONContent } from "@tiptap/react";
+import { createHash } from "crypto";
 
 interface ArtifactAgentParsedContent {
+  id: string;
   pos: number | Range;
   text: string;
   files: FileUIPart[];
@@ -172,8 +174,8 @@ function parseArtifactAgentContent(editor: Editor): ArtifactAgentParsedContent {
   }
 
   const text = textParts.join("").trim();
-
-  return { text, files, pos };
+  const id = createHash("sha256").update(text).digest("hex").slice(0, 12);
+  return { text, files, pos, id };
 }
 
 export { parseArtifactAgentContent };

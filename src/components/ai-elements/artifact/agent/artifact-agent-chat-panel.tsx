@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useArtifactAgentSidebar } from "@/hooks/artifact/use-artifact-agent-sidebar";
-import { Loader2, Plus, X } from "lucide-react";
+import { Files, GlobeIcon, Loader2, Pen, Pencil, Plus, X } from "lucide-react";
 import { useRef, useState, useCallback, ChangeEvent, useEffect } from "react";
 import {
   PromptInput,
@@ -16,8 +16,15 @@ import {
   PromptInputButton,
   usePromptInputAttachments,
   type PromptInputMessage,
+  PromptInputHeader,
+  PromptInputHoverCardTrigger,
+  PromptInputHoverCard,
+  PromptInputHoverCardContent,
 } from "@/components/ai-elements/prompt-input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { PaperclipIcon } from "lucide-react";
+import { nanoid } from "nanoid";
+import { Editor } from "@tiptap/react";
 
 function AgentAttachmentButton({
   isUploading,
@@ -123,17 +130,26 @@ function ArtifactFilesSync() {
 }
 
 export default function ArtifactAgentChatPanel({
+  editor,
   ref,
   autoFocus = false,
 }: {
+  editor: Editor | null;
   ref?: React.RefObject<HTMLTextAreaElement | null>;
   autoFocus?: boolean;
 }) {
-  const { setOpen, artifactContents } = useArtifactAgentSidebar();
+  const {
+    setOpen,
+    artifactContents,
+    artifactFiles,
+    removeLastArtifactContent,
+    removeArtifactContent,
+  } = useArtifactAgentSidebar();
   const [text, setText] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const internalRef = useRef<HTMLTextAreaElement>(null);
   const textareaRef = ref || internalRef;
+  // add use chat here to chat with artifact agent
 
   // Auto-focus textarea when panel opens
   useEffect(() => {
@@ -161,6 +177,24 @@ export default function ArtifactAgentChatPanel({
     setText("");
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key === "Backspace" &&
+        text.trim().length === 0 &&
+        artifactFiles.length === 0
+      ) {
+        console.log("Removing last artifact content");
+        removeLastArtifactContent();
+      } else if ((e.metaKey || e.ctrlKey) && e.key === "j") {
+        textareaRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () =>
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
+  }, [text, artifactFiles, removeLastArtifactContent, editor]);
+
   return (
     <div className="h-full w-full flex flex-col overflow-hidden bg-muted/50">
       <div className="flex flex-row p-2 shrink-0">
@@ -187,6 +221,35 @@ export default function ArtifactAgentChatPanel({
           maxFiles={10}
           maxFileSize={50 * 1024 * 1024}
         >
+          {artifactContents.length > 0 && (
+            <PromptInputHeader>
+              {artifactContents.map(({ content, id }) => (
+                <div key={id} className="group relative">
+                  <PromptInputHoverCard>
+                    <PromptInputHoverCardTrigger>
+                      <PromptInputButton size="sm" variant="outline">
+                        <Pen className="size-4" />{" "}
+                        <span className="truncate w-12">{content}</span>
+                      </PromptInputButton>
+                    </PromptInputHoverCardTrigger>
+                    <PromptInputHoverCardContent className="w-[300px] space-y-4 p-4 text-xs font-mono">
+                      {content}
+                    </PromptInputHoverCardContent>
+                  </PromptInputHoverCard>
+                  <Button
+                    aria-label="Remove content"
+                    className="-right-1.5 -top-1.5 absolute h-5 w-5 rounded-full opacity-0 group-hover:opacity-100"
+                    onClick={() => removeArtifactContent(id)}
+                    size="icon"
+                    type="button"
+                    variant="outline"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </PromptInputHeader>
+          )}
           <PromptInputBody className="">
             <ArtifactFilesSync />
             <PromptInputAttachments>

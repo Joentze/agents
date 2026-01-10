@@ -6,11 +6,13 @@ interface ArtifactAgentSidebarStore {
   open: boolean;
   setOpen: (open: boolean) => void;
   artifactFiles: FileUIPart[];
-  artifactContents: string[];
+  artifactContents: { content: string; id: string }[];
   addArtifactFile: (file: FileUIPart) => void;
   removeArtifactFile: (url: string) => void;
   clearArtifactFiles: () => void;
-  addArtifactContent: (content: string) => void;
+  addArtifactContent: (content: string, id: string) => void;
+  removeArtifactContent: (id: string) => void;
+  removeLastArtifactContent: () => void;
 }
 
 const useArtifactAgentSidebar = create<ArtifactAgentSidebarStore>()(
@@ -26,10 +28,24 @@ const useArtifactAgentSidebar = create<ArtifactAgentSidebarStore>()(
         set((state) => ({
           artifactFiles: state.artifactFiles.filter((f) => f.url !== url),
         })),
-      clearArtifactFiles: () => set({ artifactFiles: [] }),
-      addArtifactContent: (content: string) =>
+      removeLastArtifactContent: () =>
         set((state) => ({
-          artifactContents: [...state.artifactContents, content],
+          artifactContents: state.artifactContents.slice(0, -1),
+        })),
+      clearArtifactFiles: () => set({ artifactFiles: [] }),
+      addArtifactContent: (content: string, id: string) =>
+        set((state) => {
+          // Don't add if an artifact with the same id already exists
+          if (state.artifactContents.some((c) => c.id === id)) {
+            return state;
+          }
+          return {
+            artifactContents: [...state.artifactContents, { content, id }],
+          };
+        }),
+      removeArtifactContent: (id: string) =>
+        set((state) => ({
+          artifactContents: state.artifactContents.filter((c) => c.id !== id),
         })),
     }),
     {
