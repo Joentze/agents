@@ -135,7 +135,6 @@ const InputDemo = () => {
         },
         {} as Record<string, ArtifactBody>
       );
-      console.log("artifacts", artifacts);
       useArtifactStore.setState({ artifacts });
     }
   }, [initialArtifacts]);

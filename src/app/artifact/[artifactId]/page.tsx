@@ -429,6 +429,7 @@ export default function ArtifactPage({
                       ref={agentChatInputRef}
                       autoFocus
                       editor={editor as Editor}
+                      artifactId={id}
                     />
                   </div>
                 </ResizablePanel>

@@ -27,6 +27,7 @@ import { Placeholder } from "@tiptap/extensions";
 import { MCQNode } from "./custom/mcq-node";
 import { OpenEndedNode } from "./custom/open-ended-node";
 import { AIDiffNode } from "./custom/ai-diff-node";
+import { AIUpdateNode } from "./custom/ai-update-node";
 import { FileAttachmentNode } from "./custom/file-attachment-node";
 import { FileHandlerExtension } from "@/utils/artifact/file-handler";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
@@ -40,38 +41,41 @@ interface ArtifactRendererProps {
   defaultContent?: string;
 }
 
+export const extensions = [
+  Markdown,
+  TableKit.configure({
+    table: { resizable: true },
+  }),
+  FileHandlerExtension,
+  StarterKit,
+  FlashCardNode,
+  MCQNode,
+  Image,
+  Mathematics,
+  Gapcursor,
+  Commands,
+  HorizontalRule,
+  OpenEndedNode,
+  AIDiffNode,
+  AIUpdateNode,
+  FileAttachmentNode,
+  Highlight,
+  Youtube,
+  CodeBlockLowlight.configure({
+    lowlight,
+  }),
+  Placeholder.configure({
+    placeholder: "Type '/' for commands",
+  }),
+];
+
 export const getEditor = (
   defaultContent?: string,
   defaultJsonContent?: JSONContent | null
 ) => {
   return useEditor({
     immediatelyRender: false,
-    extensions: [
-      Markdown,
-      TableKit.configure({
-        table: { resizable: true },
-      }),
-      FileHandlerExtension,
-      StarterKit,
-      FlashCardNode,
-      MCQNode,
-      Image,
-      Mathematics,
-      Gapcursor,
-      Commands,
-      HorizontalRule,
-      OpenEndedNode,
-      AIDiffNode,
-      FileAttachmentNode,
-      Highlight,
-      Youtube,
-      CodeBlockLowlight.configure({
-        lowlight,
-      }),
-      Placeholder.configure({
-        placeholder: "Type '/' for commands",
-      }),
-    ],
+    extensions,
     contentType: "markdown",
     content: defaultContent || "",
     // use for when we want to store data with custom blocks

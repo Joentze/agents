@@ -3,11 +3,17 @@ import { FileUIPart } from "ai";
 import { JSONContent } from "@tiptap/react";
 import { createHash } from "crypto";
 
+interface ParsedNode {
+  pos: number;
+  nodeIndex: number;
+  type: string;
+}
+
 interface ArtifactAgentParsedContent {
   id: string;
-  pos: number | Range;
   text: string;
   files: FileUIPart[];
+  selectedNodes: ParsedNode[];
 }
 
 /**
@@ -158,10 +164,25 @@ function parseContentNode(
 function parseArtifactAgentContent(editor: Editor): ArtifactAgentParsedContent {
   const textParts: string[] = [];
   const files: FileUIPart[] = [];
+  const nodes: ParsedNode[] = [];
+  const { from, to } = editor.state.selection;
   const pos: number | Range = editor.state.selection.anchor;
-  const content = editor.state.selection.content().toJSON();
 
-  // Parse the content structure
+  // Collect node positions from the selection range
+  editor.state.doc.nodesBetween(from, to, (node, nodePos, parent, index) => {
+    // Only track top-level nodes (direct children of doc or within selection)
+    if (parent === editor.state.doc) {
+      nodes.push({
+        pos: nodePos,
+        nodeIndex: index,
+        type: node.type.name,
+      });
+    }
+    return true; // Continue traversing
+  });
+
+  // Parse content for text and files
+  const content = editor.state.selection.content().toJSON();
   if (content && content.content) {
     content.content.forEach((node: JSONContent, index: number) => {
       parseContentNode(node, textParts, files);
@@ -175,7 +196,8 @@ function parseArtifactAgentContent(editor: Editor): ArtifactAgentParsedContent {
 
   const text = textParts.join("").trim();
   const id = createHash("sha256").update(text).digest("hex").slice(0, 12);
-  return { text, files, pos, id };
+  return { text, files, id, selectedNodes: nodes };
 }
 
 export { parseArtifactAgentContent };
+export type { ArtifactAgentParsedContent, ParsedNode };

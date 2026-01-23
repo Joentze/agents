@@ -30,11 +30,22 @@ import { Reasoning, ReasoningContent, ReasoningTrigger } from "./reasoning";
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "./tool";
 import { MapSearchToolResult } from "@/app/types/maps";
 import MapComponent from "../ui/map/map-component";
+import { cn } from "@/lib/utils";
+
+type FontSize = "sm" | "md" | "lg";
+
+const fontSizeClasses: Record<FontSize, string> = {
+  sm: "text-sm",
+  md: "text-md",
+  lg: "text-lg",
+};
 
 interface ChatConversationProps {
   messages: UIMessage<unknown, UIDataTypes, UITools>[];
   status: ChatStatus;
   className?: string;
+  /** Font size for message content. Defaults to "md" */
+  size?: FontSize;
 }
 
 const ChatConversation = memo(
@@ -42,6 +53,7 @@ const ChatConversation = memo(
     messages,
     status,
     className,
+    size = "md",
   }: ChatConversationProps) {
     return (
       <Conversation className={className}>
@@ -61,7 +73,9 @@ const ChatConversation = memo(
                       ))}
                   </MessageAttachments>
                 )}
-                <MessageContent className="text-md max-w-full">
+                <MessageContent
+                  className={cn(fontSizeClasses[size], "max-w-full")}
+                >
                   {message.parts.map((part, i) => {
                     switch (part.type) {
                       case "text":
@@ -197,7 +211,8 @@ const ChatConversation = memo(
   (prevProps, nextProps) => {
     return (
       prevProps.messages === nextProps.messages &&
-      prevProps.status === nextProps.status
+      prevProps.status === nextProps.status &&
+      prevProps.size === nextProps.size
     );
   }
 );

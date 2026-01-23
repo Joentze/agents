@@ -7,66 +7,18 @@ import {
 import { stepCountIs, streamText, tool, UIMessageStreamWriter } from "ai";
 import { randomUUID } from "crypto";
 import z from "zod";
+import {
+  formatToolComponent,
+  writeTextDelta,
+  type StreamProcessorConfig,
+  type ToolCallChunk,
+} from "@/utils/artifact/stream-processor";
+import { componentTools } from "@/utils/artifact/component-tools";
 
 type ArtifactToolParams = {
   chatId: string;
   writer: UIMessageStreamWriter;
 };
-
-const flashCardTool = tool({
-  name: "flash-card",
-  description: "Use the flash-card tool when creating flash cards",
-  inputSchema: z.object({
-    title: z.string().describe("The title of the flash cards"),
-    cards: z
-      .array(
-        z.object({
-          question: z.string().describe("The question of the flash card"),
-          answer: z.string().describe("The answer of the flash card"),
-        })
-      )
-      .describe("The cards of the flash card"),
-  }),
-  execute: async ({ cards }) => {
-    return cards.map((card) => {
-      return {
-        question: card.question,
-        answer: card.answer,
-      };
-    });
-  },
-});
-const mcqTool = tool({
-  name: "mcq",
-  description: "Use the mcq tool when creating mcqs",
-  inputSchema: z.object({
-    questions: z.array(
-      z.object({
-        question: z.string().describe("The question of the mcq"),
-        options: z.array(
-          z.object({
-            option: z.string().describe("The option of the mcq"),
-            isCorrect: z.boolean().describe("Whether the option is correct"),
-          })
-        ),
-      })
-    ),
-  }),
-});
-const openEndedTool = tool({
-  name: "open-ended",
-  description: "Use the open-ended tool when creating open-ended questions",
-  inputSchema: z.object({
-    questions: z.array(
-      z.object({
-        question: z.string().describe("The question of the open-ended"),
-        recommendedAnswer: z
-          .string()
-          .describe("The recommended answer of the open-ended"),
-      })
-    ),
-  }),
-});
 const artifactTool = ({ chatId, writer }: ArtifactToolParams) =>
   tool({
     name: "artifact",
@@ -124,11 +76,7 @@ const artifactTool = ({ chatId, writer }: ArtifactToolParams) =>
 
       const { fullStream } = streamText({
         model: "anthropic/claude-haiku-4.5",
-        tools: {
-          flashCardTool,
-          mcqTool,
-          openEndedTool,
-        },
+        tools: componentTools,
         stopWhen: stepCountIs(5),
         prompt: `
             You are a writer and you write a detailed report based on the following:
@@ -143,105 +91,43 @@ const artifactTool = ({ chatId, writer }: ArtifactToolParams) =>
             - If you need to create flash cards, use the flash-card tool to create them.
             `,
       });
+      const config: StreamProcessorConfig = {
+        writer,
+        runId,
+        eventType: "data-artifact-delta",
+      };
+
       let content = "";
       for await (const chunk of fullStream) {
         switch (chunk.type) {
           case "text-delta":
             content += chunk.text;
+            writeTextDelta(config, chunk.text);
+            break;
+          case "tool-call":
+            const { componentName, content: componentContent } =
+              formatToolComponent(chunk as ToolCallChunk);
+
             writer.write({
               type: "data-artifact-delta",
               id: runId,
               data: {
-                delta: chunk.text,
+                delta: componentContent,
               },
             });
-            break;
-          case "tool-call":
-            if (chunk.toolName === "flashCardTool") {
-              const component = `:::flashcard {type="${chunk.toolName}"}
-
-${JSON.stringify(chunk.input)}
-
-:::`;
-              writer.write({
-                type: "data-artifact-delta",
-                id: runId,
+            writer.write({
+              type: "data-chain-of-thought-step-update",
+              data: {
+                status: "completed",
+                type: "component",
+                runId,
+                stepId: runId,
                 data: {
-                  delta: component,
+                  component: componentName as ComponentStep["component"],
                 },
-              });
-              writer.write({
-                type: "data-chain-of-thought-step-update",
-                data: {
-                  status: "completed",
-                  type: "component",
-                  runId,
-                  stepId: runId,
-                  data: {
-                    component: "flash-card" as ComponentStep["component"],
-                  },
-                } as StepUpdateType,
-              });
-              content += component;
-            } else if (chunk.toolName === "mcqTool") {
-              const component = `:::mcq {type="${chunk.toolName}"}
-
-${JSON.stringify({
-  ...(chunk.input as object),
-  id: chunk.toolCallId,
-})}
-
-:::`;
-              writer.write({
-                type: "data-artifact-delta",
-                id: runId,
-                data: {
-                  delta: component,
-                },
-              });
-              writer.write({
-                type: "data-chain-of-thought-step-update",
-                data: {
-                  status: "completed",
-                  type: "component",
-                  runId,
-                  stepId: runId,
-                  data: {
-                    component: "mcq" as ComponentStep["component"],
-                  },
-                } as StepUpdateType,
-              });
-              content += component;
-            } else if (chunk.toolName === "openEndedTool") {
-              const component = `:::openended {type="${chunk.toolName}"}
-
-${JSON.stringify({
-  ...(chunk.input as object),
-  id: chunk.toolCallId,
-})}
-
-:::`;
-              writer.write({
-                type: "data-artifact-delta",
-                id: runId,
-                data: {
-                  delta: component,
-                },
-              });
-              writer.write({
-                type: "data-chain-of-thought-step-update",
-                data: {
-                  status: "completed",
-                  type: "component",
-                  runId,
-                  stepId: runId,
-                  data: {
-                    component: "openended" as ComponentStep["component"],
-                  },
-                } as StepUpdateType,
-              });
-              content += component;
-            }
+              } as StepUpdateType,
+            });
+            content += componentContent;
             break;
           default:
             break;

@@ -13,6 +13,7 @@ interface ArtifactAgentSidebarStore {
   addArtifactContent: (content: string, id: string) => void;
   removeArtifactContent: (id: string) => void;
   removeLastArtifactContent: () => void;
+  clearArtifactContents: () => void;
 }
 
 const useArtifactAgentSidebar = create<ArtifactAgentSidebarStore>()(
@@ -20,6 +21,7 @@ const useArtifactAgentSidebar = create<ArtifactAgentSidebarStore>()(
     (set) => ({
       open: false,
       setOpen: (open: boolean) => set({ open }),
+      clearArtifactContents: () => set({ artifactContents: [] }),
       artifactFiles: [],
       artifactContents: [],
       addArtifactFile: (file: FileUIPart) =>

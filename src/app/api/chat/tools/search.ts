@@ -3,7 +3,13 @@ import {
   StepUpdateType,
 } from "@/app/types/chain-of-thought";
 import { google, GoogleGenerativeAIProviderMetadata } from "@ai-sdk/google";
-import { generateText, stepCountIs, tool, UIMessageStreamWriter } from "ai";
+import {
+  generateText,
+  stepCountIs,
+  tool,
+  UIMessageStreamWriter,
+  zodSchema,
+} from "ai";
 import { randomUUID } from "crypto";
 import Exa from "exa-js";
 import { z } from "zod";
@@ -12,10 +18,12 @@ const searchTool = tool({
   name: "search",
   description:
     "Search the web for information, for more complex queries, increase the number of results",
-  inputSchema: z.object({
-    query: z.string(),
-    numResults: z.number().optional().default(5),
-  }),
+  inputSchema: zodSchema(
+    z.object({
+      query: z.string(),
+      numResults: z.number().optional().default(5),
+    })
+  ),
   execute: async ({ query, numResults }) => {
     const exa = new Exa();
     const { results } = await exa.searchAndContents(query, {
@@ -36,7 +44,7 @@ const search2Tool = ({ writer }: { writer: UIMessageStreamWriter }) =>
   tool({
     name: "search",
     description: "Search the web for information",
-    inputSchema: z.object({ query: z.string() }),
+    inputSchema: zodSchema(z.object({ query: z.string() })),
     execute: async ({ query }, { toolCallId: runId }) => {
       const startDatetime = Date.now();
       writer.write({
@@ -49,7 +57,11 @@ const search2Tool = ({ writer }: { writer: UIMessageStreamWriter }) =>
           steps: {},
         } as ChainOfThoughtRun,
       });
-
+      const currentDate = new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
       const {
         text: searchResponseText,
         sources,
@@ -57,7 +69,7 @@ const search2Tool = ({ writer }: { writer: UIMessageStreamWriter }) =>
       } = await generateText({
         model: google("gemini-2.5-flash"),
         prompt: `You are an advanced researcher, Here's how you work:
-        1. You start by using the date tool to get the current date.
+        1. where relevant the latest date is: ${currentDate}.
         2. You break down the query into relevant topics and use the search
          tool to find the most relevant information. The query is: ${query} with the current date.
         3. You summarise the information and use the text tool to store the information.`,
@@ -65,18 +77,6 @@ const search2Tool = ({ writer }: { writer: UIMessageStreamWriter }) =>
         tools: {
           url_context: google.tools.urlContext({}) as any,
           searchTool: google.tools.googleSearch({}) as any,
-          dateTool: tool({
-            name: "date",
-            description: "Get the current date",
-            inputSchema: z.object({}),
-            execute: async () => {
-              return new Date().toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              });
-            },
-          }),
         },
         providerOptions: {},
       });

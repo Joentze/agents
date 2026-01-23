@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useArtifactAgentSidebar } from "@/hooks/artifact/use-artifact-agent-sidebar";
-import { Files, GlobeIcon, Loader2, Pen, Pencil, Plus, X } from "lucide-react";
+import { Loader2, Pen, Plus, X } from "lucide-react";
 import { useRef, useState, useCallback, ChangeEvent, useEffect } from "react";
 import {
   PromptInput,
@@ -21,10 +21,24 @@ import {
   PromptInputHoverCard,
   PromptInputHoverCardContent,
 } from "@/components/ai-elements/prompt-input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { PaperclipIcon } from "lucide-react";
-import { nanoid } from "nanoid";
 import { Editor } from "@tiptap/react";
+import { useChat } from "@ai-sdk/react";
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithToolCalls,
+} from "ai";
+import { useChainOfThoughtStore } from "@/hooks/chain-of-thought/use-chain-of-thought";
+import {
+  ChainOfThoughtRun,
+  StepUpdateType,
+} from "@/app/types/chain-of-thought";
+import ChatConversation from "@/components/ai-elements/chat-conversation";
+import { generateId } from "@/components/ai-elements/artifact/custom/ai-update-node";
+import { diffNodes, groupChangeBlocks } from "@/utils/artifact/markdown-diff";
+import {
+  extensions,
+  getEditor,
+} from "@/components/ai-elements/artifact/artifact-renderer";
 
 function AgentAttachmentButton({
   isUploading,
@@ -80,14 +94,22 @@ function AgentAttachmentButton({
   );
 }
 
-function AgentSubmitButton({ text }: { text: string }) {
+function AgentSubmitButton({
+  text,
+  status,
+}: {
+  text: string;
+  status: "streaming" | "submitted" | "ready" | "error";
+}) {
   const attachments = usePromptInputAttachments();
   const hasText = text.trim().length > 0;
   const hasFiles = attachments.files.length > 0;
+  const isSubmitting = status === "streaming" || status === "submitted";
 
   return (
     <PromptInputSubmit
-      disabled={!hasText && !hasFiles}
+      disabled={(!hasText && !hasFiles) || isSubmitting}
+      status={status}
       className="border border-muted-foreground ring-1 ring-border/50 ml-auto"
     />
   );
@@ -133,10 +155,12 @@ export default function ArtifactAgentChatPanel({
   editor,
   ref,
   autoFocus = false,
+  artifactId,
 }: {
   editor: Editor | null;
   ref?: React.RefObject<HTMLTextAreaElement | null>;
   autoFocus?: boolean;
+  artifactId: string;
 }) {
   const {
     setOpen,
@@ -144,12 +168,207 @@ export default function ArtifactAgentChatPanel({
     artifactFiles,
     removeLastArtifactContent,
     removeArtifactContent,
+    clearArtifactContents,
   } = useArtifactAgentSidebar();
   const [text, setText] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const internalRef = useRef<HTMLTextAreaElement>(null);
   const textareaRef = ref || internalRef;
-  // add use chat here to chat with artifact agent
+  const editorRef = useRef(editor);
+  editorRef.current = editor;
+
+  // Chat hook for artifact agent
+  const artifactChat = useChat({
+    id: `artifact-${artifactId}`,
+    transport: new DefaultChatTransport({
+      api: "/api/artifact/chat",
+    }),
+    onData: async ({ data, type, id: runId }) => {
+      switch (type) {
+        case "data-chain-of-thought-run-start":
+          const {
+            id,
+            type: runType,
+            startDatetime: runStart,
+            status,
+            steps,
+          } = data as unknown as ChainOfThoughtRun;
+          useChainOfThoughtStore.getState().addRun({
+            id,
+            status,
+            type: runType,
+            startDatetime: runStart,
+            steps,
+          });
+          break;
+        case "data-chain-of-thought-step-update":
+          const {
+            runId: stepRunId,
+            stepId,
+            type: stepType,
+            status: stepStatus,
+            data: stepData,
+            startDatetime,
+            endDatetime,
+          } = data as unknown as StepUpdateType;
+          const currentRuns = useChainOfThoughtStore.getState().runs;
+          if (
+            !Object.keys(currentRuns[stepRunId]?.steps || {}).includes(stepId)
+          ) {
+            useChainOfThoughtStore.getState().addStep(stepRunId, {
+              runId: stepRunId,
+              stepId,
+              type: stepType,
+              status: stepStatus,
+              data: stepData,
+              startDatetime,
+              endDatetime,
+            });
+          } else {
+            useChainOfThoughtStore.getState().updateStep(stepRunId, stepId, {
+              runId: stepRunId,
+              stepId,
+              type: stepType,
+              status: stepStatus,
+              data: stepData,
+              startDatetime,
+              endDatetime,
+            });
+          }
+          break;
+        case "data-chain-of-thought-run-end":
+          const { id: currentRunId, status: runStatus } =
+            data as unknown as ChainOfThoughtRun;
+          useChainOfThoughtStore.getState().updateRun(currentRunId, {
+            status: runStatus,
+          });
+          break;
+        case "data-artifact-agent-chat-end":
+          const { newMarkdown } = data as unknown as { newMarkdown: string };
+          const oldMarkdown = editor?.getMarkdown() || "";
+
+          // Get old nodes from current editor
+          const oldNodes = editor?.getJSON()?.content || [];
+
+          // Create a temporary editor to parse new markdown and get nodes
+          const tempEditor = new Editor({
+            extensions,
+            content: newMarkdown,
+          });
+          tempEditor?.commands.setContent(newMarkdown, {
+            emitUpdate: false,
+            contentType: "markdown",
+          });
+          const newNodes = tempEditor?.getJSON()?.content || [];
+
+          // Use hash-based LCS diff for block-level comparison
+          const diffSegments = diffNodes(oldNodes, newNodes);
+          console.log("diffSegments", diffSegments);
+          const groupedDiffSegments = groupChangeBlocks(diffSegments);
+          console.log("groupedDiffSegments", groupedDiffSegments);
+
+          // Build content nodes from grouped diff segments
+          if (editor) {
+            const contentNodes: Array<
+              | {
+                  type: "aiUpdate";
+                  attrs: { id: string; type: string; content: string };
+                }
+              | Record<string, unknown>
+            > = [];
+
+            for (const segment of groupedDiffSegments) {
+              if (segment.type === "unchanged") {
+                // Parse unchanged markdown and insert as regular nodes
+                const parsed = editor.markdown?.parse(segment.value);
+                if (parsed?.content) {
+                  contentNodes.push(...parsed.content);
+                }
+              } else {
+                // Added or removed - use AIUpdateNode
+                contentNodes.push({
+                  type: "aiUpdate",
+                  attrs: {
+                    id: generateId(),
+                    type: segment.type,
+                    content: segment.value,
+                  },
+                });
+              }
+            }
+
+            // Clear editor and set the new content
+            editor
+              .chain()
+              .focus()
+              .clearContent()
+              .insertContent(contentNodes)
+              .run();
+          }
+
+          // Clean up temp editor
+          tempEditor?.destroy();
+          break;
+        default:
+          break;
+      }
+    },
+    async onToolCall({ toolCall }) {
+      // Handle readArtifact - a dynamic tool that we execute automatically
+      if (toolCall.toolName === "readArtifact") {
+        const currentNodes = editorRef.current?.getJSON()?.content || [];
+        currentNodes.map((node, index) => {
+          return { ...node, index };
+        });
+        // No await - avoids potential deadlocks
+        console.log("currentNodes", currentNodes);
+        addToolOutput({
+          tool: "readArtifact",
+          toolCallId: toolCall.toolCallId,
+          output: currentNodes,
+        });
+      } else if (toolCall.toolName === "insertArtifact") {
+        const {index, markdown} = toolCall.input as {index: number, markdown: string};
+        // parse markdown as node and then insert the node instead
+        const editor = editorRef.current;
+        if (editor) {
+          // Create an AI update node with the markdown content
+          const aiUpdateNode = {
+            type: "aiUpdate",
+            attrs: {
+              id: generateId(),
+              type: "added",
+              content: markdown,
+            },
+          };
+
+          // Get current nodes to calculate position
+          const currentNodes = editor.getJSON()?.content || [];
+          
+          // Calculate position: sum of all node sizes before the target index
+          let position = 0;
+          for (let i = 0; i < Math.min(index, currentNodes.length); i++) {
+            position += editor.state.doc.content.child(i).nodeSize;
+          }
+
+          // Insert the AI update node at the calculated position
+          editor
+            .chain()
+            .focus()
+            .insertContentAt(position, aiUpdateNode)
+            .run();
+        }
+
+        addToolOutput({
+          tool: "insertArtifact",
+          toolCallId: toolCall.toolCallId,
+          output: `Inserted markdown at index ${index}`,
+        });
+      }
+    },
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
+  const { messages, status, sendMessage, addToolOutput } = artifactChat;
 
   // Auto-focus textarea when panel opens
   useEffect(() => {
@@ -166,16 +385,43 @@ export default function ArtifactAgentChatPanel({
     setText(value);
   }, []);
 
-  const handleSubmit = useCallback((message: PromptInputMessage) => {
-    const hasText = message.text?.trim();
-    const hasFiles = message.files && message.files.length > 0;
+  const handleSubmit = useCallback(
+    async (message: PromptInputMessage) => {
+      const hasText = message.text?.trim();
+      const hasFiles = message.files && message.files.length > 0;
 
-    if (!hasText && !hasFiles) return;
+      if (!hasText && !hasFiles) return;
 
-    // TODO: Handle message submission
-    console.log("Submit:", message);
-    setText("");
-  }, []);
+      // Build content parts for the message
+      const content = message.text || "Sent with attachments";
+      // Get fresh contents directly from store to avoid stale closure
+      const freshContents = useArtifactAgentSidebar.getState().artifactContents;
+      // Get all nodes from the editor as JSON
+      const allNodes = editor?.getJSON()?.content || [];
+      console.log("allNodes", allNodes);
+
+      // what if i take all the nodes in the old markdown, hash based on content, take a new editor instance with the new markdown and hashed the nodes compare them in order
+      sendMessage(
+        {
+          text: content,
+          files: message.files,
+          metadata: {
+            selectedContents: freshContents,
+          },
+        },
+        {
+          body: {
+            artifactId,
+            artifactMarkdown: editor?.getMarkdown() || "",
+          },
+        }
+      );
+
+      setText("");
+      useArtifactAgentSidebar.getState().clearArtifactContents();
+    },
+    [sendMessage, artifactId, editor]
+  );
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -208,9 +454,12 @@ export default function ArtifactAgentChatPanel({
         </Button>
       </div>
 
-      <ScrollArea className="flex-1 px-3">
-        {/* Messages will go here */}
-      </ScrollArea>
+      <ChatConversation
+        messages={messages}
+        status={status}
+        size="sm"
+        className="flex-1 px-3"
+      />
 
       <div className="p-3 shrink-0 ">
         <PromptInput
@@ -273,7 +522,7 @@ export default function ArtifactAgentChatPanel({
                 onUploadEnd={() => setIsUploading(false)}
               />
             </PromptInputTools>
-            <AgentSubmitButton text={text} />
+            <AgentSubmitButton text={text} status={status} />
           </PromptInputFooter>
         </PromptInput>
       </div>

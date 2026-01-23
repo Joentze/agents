@@ -82,14 +82,21 @@ const OpenEndedComponent = ({ node }: ReactNodeViewProps) => {
   if (!openEndedContent) {
     return null;
   }
-
-  const parsedContent: {
+  let parsedContent: {
     id: string;
     questions: Array<{
       question: string;
       placeholder?: string;
     }>;
-  } = JSON.parse(openEndedContent);
+  } ;
+ try{
+  
+  parsedContent = JSON.parse(openEndedContent);
+  }
+  catch(error) {
+    console.error("Error parsing open ended content", error);
+    return null;
+  }
 
   const handleReset = () => {
     // TODO: Reset all answers in store
