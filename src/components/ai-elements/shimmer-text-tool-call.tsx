@@ -11,8 +11,7 @@ export default function ShimmerTextToolCall({ icon, beforeText, afterText, statu
     return (
         <div className="flex flex-row items-center gap-2 text-muted-foreground" >
             {icon}
-            {status === 'input-streaming' && <Shimmer>{beforeText}</Shimmer>}
-            {status === 'output-available' && <p>{afterText}</p>}
+            {status === 'output-available' ? <p>{afterText}</p> : <Shimmer>{beforeText}</Shimmer>}
         </div>
     )
 }

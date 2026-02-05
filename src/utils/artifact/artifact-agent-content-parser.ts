@@ -14,6 +14,7 @@ interface ArtifactAgentParsedContent {
   text: string;
   files: FileUIPart[];
   selectedNodes: ParsedNode[];
+  selectedStartNodeIndex: number;
 }
 
 /**
@@ -196,7 +197,7 @@ function parseArtifactAgentContent(editor: Editor): ArtifactAgentParsedContent {
 
   const text = textParts.join("").trim();
   const id = createHash("sha256").update(text).digest("hex").slice(0, 12);
-  return { text, files, id, selectedNodes: nodes };
+  return { text, files, id, selectedNodes: nodes, selectedStartNodeIndex: nodes[0].nodeIndex };
 }
 
 export { parseArtifactAgentContent };

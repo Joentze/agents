@@ -6,11 +6,11 @@ interface ArtifactAgentSidebarStore {
   open: boolean;
   setOpen: (open: boolean) => void;
   artifactFiles: FileUIPart[];
-  artifactContents: { content: string; id: string }[];
+  artifactContents: { content: string; id: string, nodeIndex: number }[];
   addArtifactFile: (file: FileUIPart) => void;
   removeArtifactFile: (url: string) => void;
   clearArtifactFiles: () => void;
-  addArtifactContent: (content: string, id: string) => void;
+  addArtifactContent: (content: string, id: string, nodeIndex: number) => void;
   removeArtifactContent: (id: string) => void;
   removeLastArtifactContent: () => void;
   clearArtifactContents: () => void;
@@ -35,14 +35,14 @@ const useArtifactAgentSidebar = create<ArtifactAgentSidebarStore>()(
           artifactContents: state.artifactContents.slice(0, -1),
         })),
       clearArtifactFiles: () => set({ artifactFiles: [] }),
-      addArtifactContent: (content: string, id: string) =>
+      addArtifactContent: (content: string, id: string, nodeIndex: number) =>
         set((state) => {
           // Don't add if an artifact with the same id already exists
           if (state.artifactContents.some((c) => c.id === id)) {
             return state;
           }
           return {
-            artifactContents: [...state.artifactContents, { content, id }],
+            artifactContents: [...state.artifactContents, { content, id, nodeIndex }],
           };
         }),
       removeArtifactContent: (id: string) =>

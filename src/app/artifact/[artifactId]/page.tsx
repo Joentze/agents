@@ -201,16 +201,20 @@ export default function ArtifactPage({
         e.preventDefault();
         setAgentSidebarOpen(false);
       }
+
       if ((e.metaKey || e.ctrlKey) && e.key === "j") {
         e.preventDefault();
 
         // get the current selected content
         // parse for files and text, add to state manager for chat input pills
         if (editor) {
-          const { text, files, id } = parseArtifactAgentContent(editor);
+
+
+          const { text, files, id, selectedStartNodeIndex } = parseArtifactAgentContent(editor);
           files.forEach((file) => addArtifactFile(file));
           if (text.trim().length > 0) {
-            addArtifactContent(text, id);
+
+            addArtifactContent(text, id, selectedStartNodeIndex);
           }
         }
         setAgentSidebarOpen(true);

@@ -12,6 +12,7 @@ import { search2Tool as agenticSearch } from "@/app/api/chat/tools/search";
 
 import { z } from "zod";
 import { insertMarkdownIntoArtifactTool } from "./tools/insert-artifact";
+import { updateNodeInArtifactTool } from "./tools/update-node-in-artifact";
 
 interface ArtifactChatRequest {
   artifactId: string;
@@ -25,11 +26,11 @@ export async function POST(req: Request) {
 
   // Safely extract selectedContents from the last message metadata
   const lastMessageMetadata = messages.slice(-1)[0]?.metadata as
-    | { selectedContents?: { content: string; id: string }[] }
+    | { selectedContents?: { content: string; id: string, nodeIndex: number }[] }
     | undefined;
   const selectedContentsArray = lastMessageMetadata?.selectedContents || [];
   const selectedContents = selectedContentsArray
-    .map(({ content }: { content: string }) => content)
+    .map(({ content, nodeIndex }: { content: string, nodeIndex: number }) => { return `<selected-content node-index="${nodeIndex}">\n${content}\n</selected-content>` })
     .join("\n\n");
 
   // Append selected content to the last user message if it exists
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
           ...lastMessage.parts,
           {
             type: "text" as const,
-            text: `\n\n<selected-content>\n${selectedContents}\n</selected-content>`,
+            text: `\n\n<selected-contents>\n${selectedContents}\n</selected-contents>`,
           },
         ],
       };
@@ -103,7 +104,7 @@ export async function POST(req: Request) {
             }),
           },
           insertIntoArtifact: insertMarkdownIntoArtifactTool({ writer, messages }),
-          // updateNodeInArtifact: updateNodeInArtifactTool({ writer, messages }),
+          updateNodeInArtifact: updateNodeInArtifactTool({ writer, messages }),
           // deleteNodeFromArtifact: deleteNodeFromArtifactTool({ writer, messages }),
           agenticSearch: agenticSearch({ writer }),
         },

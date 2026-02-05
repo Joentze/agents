@@ -25,7 +25,7 @@ import { ArtifactPlanDisplay } from "@/components/ai-elements/artifact/artifact-
 import { ArtifactInput } from "@/app/types/artifact";
 import { Fragment, memo } from "react";
 import type { ChatStatus, UIMessage, UIDataTypes, UITools } from "ai";
-import { CopyIcon, Eye } from "lucide-react";
+import { Blocks, CopyIcon, Eye, Pencil, SquarePen } from "lucide-react";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "./reasoning";
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "./tool";
 import { MapSearchToolResult } from "@/app/types/maps";
@@ -156,6 +156,14 @@ const ChatConversation = memo(
                       case "tool-readNodeInArtifact":
                         return (
                           <ShimmerTextToolCall status={part.state} icon={<Eye className="size-4" />} beforeText="Reading node..." afterText="Read node" />
+                        )
+                      case "tool-insertIntoArtifact":
+                        return (
+                          <ShimmerTextToolCall status={part.state} icon={<SquarePen className="size-4" />} beforeText="Inserting into artifact..." afterText="Insert into artifact" />
+                        )
+                      case "tool-updateNodeInArtifact":
+                        return (
+                          <ShimmerTextToolCall status={part.state} icon={<Blocks className="size-4" />} beforeText="Updating node..." afterText="Update node" />
                         )
                       default:
                         return null;

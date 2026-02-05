@@ -164,7 +164,6 @@ export default function ArtifactAgentChatPanel({
     artifactFiles,
     removeLastArtifactContent,
     removeArtifactContent,
-    clearArtifactContents,
   } = useArtifactAgentSidebar();
   const [text, setText] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -239,7 +238,7 @@ export default function ArtifactAgentChatPanel({
             status: runStatus,
           });
           break;
-        case "data-artifact-agent-insert-markdown-block-end":
+        case "data-artifact-agent-generate-markdown-block-end":
           const { markdown, index } = data as unknown as { markdown: string, index: number };
 
           // parse markdown as node and then insert the node instead
@@ -271,6 +270,59 @@ export default function ArtifactAgentChatPanel({
               .insertContentAt(position, aiUpdateNode)
               .run();
           }
+          break;
+        case "data-artifact-agent-update-markdown-node-in-artifact-end":
+          const { markdown: newMarkdown, index: nodeIndex } = data as unknown as { markdown: string, index: number };
+
+          const updateEditor = editorRef.current;
+          if (updateEditor) {
+            // Get current nodes
+            const nodes = updateEditor.getJSON()?.content || [];
+
+            if (nodeIndex >= 0 && nodeIndex < nodes.length) {
+              // Get the original node's markdown for the "removed" display
+              const originalNode = nodes[nodeIndex];
+              const originalMarkdown = updateEditor.markdown?.serialize(originalNode) || "";
+
+              // Calculate position: sum of all node sizes before the target index
+              let updatePosition = 0;
+              for (let i = 0; i < nodeIndex; i++) {
+                updatePosition += updateEditor.state.doc.content.child(i).nodeSize;
+              }
+
+              // Get the size of the node to be deleted
+              const nodeSize = updateEditor.state.doc.content.child(nodeIndex).nodeSize;
+
+              // Create AI update node for removed content
+              const aiUpdateRemovedNode = {
+                type: "aiUpdate",
+                attrs: {
+                  id: runId,
+                  type: "removed",
+                  content: originalMarkdown,
+                },
+              };
+
+              // Create AI update node for added content
+              const aiUpdateAddedNode = {
+                type: "aiUpdate",
+                attrs: {
+                  id: runId,
+                  type: "added",
+                  content: newMarkdown,
+                },
+              };
+
+              // Delete the original node and insert the AI update nodes
+              updateEditor
+                .chain()
+                .focus()
+                .deleteRange({ from: updatePosition, to: updatePosition + nodeSize })
+                .insertContentAt(updatePosition, [aiUpdateRemovedNode, aiUpdateAddedNode])
+                .run();
+            }
+          }
+          break;
         default:
           break;
       }
@@ -303,9 +355,6 @@ export default function ArtifactAgentChatPanel({
             index,
           },
         });
-      }
-      else if (toolCall.toolName === "insertArtifact") {
-
       }
     },
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
