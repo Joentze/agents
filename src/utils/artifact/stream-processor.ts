@@ -8,7 +8,7 @@ type ToolCallChunk = {
 };
 
 type StreamEventType = "data-artifact-delta" | "data-artifact-agent-chat-delta";
-
+const validToolNames = ["flashCardTool", "mcqTool", "openEndedTool"] as const;
 type StreamProcessorConfig = {
   writer: UIMessageStreamWriter;
   runId: string;
@@ -38,7 +38,8 @@ function formatToolComponent(chunk: ToolCallChunk): {
 
 ${JSON.stringify(payload)}
 
-:::`;
+:::
+`;
 
   return { componentName, content };
 }
@@ -95,7 +96,9 @@ function writeComponentDelta(
 ): string {
   const { writer, runId, eventType } = config;
   const { content } = formatToolComponent(chunk);
-
+  if (!validToolNames.includes(chunk.toolName as typeof validToolNames[number])) {
+    return "";
+  }
   writer.write({
     type: eventType,
     id: runId,

@@ -3,7 +3,8 @@ import {
   stepCountIs,
   streamText,
   tool,
-  type UIMessage,
+  UserModelMessage,
+  type ModelMessage,
   type UIMessageStreamWriter,
 } from "ai";
 import { randomUUID } from "node:crypto";
@@ -18,55 +19,37 @@ import { componentTools } from "@/utils/artifact/component-tools";
 
 const artifactSchema = z.object({
   index: z.number(),
-  updateInstructions: z
+  instructions: z
     .string()
     .describe(
-      "The instructions for the update, remind the artifact agent to keep other content as is"
+      "instructions for what kind of markdown content needs to be generated"
     ),
 });
 
-export function insertMarkdownIntoArtifactTool({
+function insertMarkdownIntoArtifactTool({
   writer,
-  selectedContents,
   messages,
 }: {
   writer: UIMessageStreamWriter;
-  index?: number | null;
-  selectedContents: string;
-  messages: UIMessage[];
+  messages: ModelMessage[];
 }) {
   return tool({
-    description: "Update the artifact with the new content",
+    description: "Write  the artifact with the new content",
     inputSchema: artifactSchema,
-    execute: async ({ index, updateInstructions }) => {
+    execute: async ({ index, instructions }) => {
       // use streamText to stream the whole update to the front end to
       // create scrolling text like in cursor
       // the output of this will be the full edited artifact
       // this will then be sent to the front end, where diffs will be compared for approval by the user
 
       // Add update instructions as a new user message
-      const updateMessage: UIMessage = {
-        id: randomUUID(),
+      const appendedInstructions: ModelMessage[] = [...messages, {
         role: "user",
-        parts: [
-          {
-            type: "text",
-            text: `${updateInstructions}
-
-write a markdown block at the appropriate index based on the selected text and prompt
-
-<selected-text>
-${selectedContents}
-</selected-text>`,
-          },
-        ],
-      };
-
-      const updatedMessages = [...messages, updateMessage];
-
+        content: `Based on the preceding context, Write markdown for the following instructions: ${instructions}`,
+      } as UserModelMessage];
       const { fullStream } = streamText({
         model: "anthropic/claude-haiku-4.5",
-        messages: await convertToModelMessages(updatedMessages),
+        messages: appendedInstructions,
         stopWhen: stepCountIs(10),
         tools: componentTools,
         system: `
@@ -75,17 +58,12 @@ ${selectedContents}
         abide by the following rules when writing the markdown block:
         <output-rules>
         - use the markdown format to write the document.
-        - DO NOT have preambles like "Sure! Here's the report..." or "I'll update the markdown..." or anything like that, ONLY WRITE THE MARKDOWN.
+        - refrain from using emojis, unless explicitly asked for, or when it is relevant to the content.
+        - DO NOT have postambles/preambles like "Sure! Here's the report..." or "I'll update the markdown..." or anything like that, ONLY WRITE THE MARKDOWN.
+        - DO NOT have any other text or comments or anything like that, ONLY WRITE THE MARKDOWN CONTENT for the user. 
         - you are to write the markdown block at the appropriate index based on the selected text and prompt
         - when adding new flash cards, mcq, open-ended questions, use the flash-card tool, mcq tool, open-ended tool to create them.
         </output-rules>
-        
-        <style-rules>
-        - when highlighting text, use markdown syntax to highlight the text, but for highlights with colors, format like this: ==text=={color}, where color is the hex code of the color.
-        - when adding office documents use the file-attachment format which is :::file-attachment {type="file" url="<file-url>" filename="<file-name>" originalMimeType="<mime-type>"}
-        :::
-        - generally, use markdown syntax for all text formatting.
-        </style-rules>
         `,
       });
       const runId = randomUUID();
@@ -120,3 +98,5 @@ ${selectedContents}
     },
   });
 }
+
+export { insertMarkdownIntoArtifactTool };

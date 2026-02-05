@@ -75,7 +75,7 @@ const OpenEndedQuestion = ({
   );
 };
 
-const OpenEndedComponent = ({ node }: ReactNodeViewProps) => {
+const OpenEndedComponent = ({ node, selected }: ReactNodeViewProps) => {
   const openEndedContent = node.content.toJSON()[0].content[0].text;
   const [questionIndex, setQuestionIndex] = useState<number>(0);
 
@@ -88,12 +88,12 @@ const OpenEndedComponent = ({ node }: ReactNodeViewProps) => {
       question: string;
       placeholder?: string;
     }>;
-  } ;
- try{
-  
-  parsedContent = JSON.parse(openEndedContent);
+  };
+  try {
+
+    parsedContent = JSON.parse(openEndedContent);
   }
-  catch(error) {
+  catch (error) {
     console.error("Error parsing open ended content", error);
     return null;
   }
@@ -105,7 +105,7 @@ const OpenEndedComponent = ({ node }: ReactNodeViewProps) => {
 
   return (
     <NodeViewWrapper className="open-ended-node my-4 w-full max-w-full">
-      <div className="space-y-6 flex-1">
+      <div className={cn("space-y-6 flex-1", selected && "bg-accent/30 ring-2 ring-border/50 p-1 rounded-lg")}>
         <div className="space-y-6">
           <div
             key={questionIndex}
@@ -172,6 +172,8 @@ const OpenEndedNode = Node.create({
   name: "openended",
   group: "block",
   content: "block+",
+  selectable: true,
+  atom: true,
 
   addAttributes() {
     return {

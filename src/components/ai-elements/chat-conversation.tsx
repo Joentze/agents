@@ -25,12 +25,13 @@ import { ArtifactPlanDisplay } from "@/components/ai-elements/artifact/artifact-
 import { ArtifactInput } from "@/app/types/artifact";
 import { Fragment, memo } from "react";
 import type { ChatStatus, UIMessage, UIDataTypes, UITools } from "ai";
-import { CopyIcon } from "lucide-react";
+import { CopyIcon, Eye } from "lucide-react";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "./reasoning";
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "./tool";
 import { MapSearchToolResult } from "@/app/types/maps";
 import MapComponent from "../ui/map/map-component";
 import { cn } from "@/lib/utils";
+import ShimmerTextToolCall from "./shimmer-text-tool-call";
 
 type FontSize = "sm" | "md" | "lg";
 
@@ -148,6 +149,14 @@ const ChatConversation = memo(
                               )}
                           </Fragment>
                         );
+                      case "tool-readArtifact":
+                        return (
+                          <ShimmerTextToolCall status={part.state} icon={<Eye className="size-4" />} beforeText="Reading artifact..." afterText="Read artifact" />
+                        )
+                      case "tool-readNodeInArtifact":
+                        return (
+                          <ShimmerTextToolCall status={part.state} icon={<Eye className="size-4" />} beforeText="Reading node..." afterText="Read node" />
+                        )
                       default:
                         return null;
                     }

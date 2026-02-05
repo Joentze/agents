@@ -55,7 +55,7 @@ const FlashCard = ({
   );
 };
 
-const FlashCardComponent = ({ node }: ReactNodeViewProps) => {
+const FlashCardComponent = ({ node, selected }: ReactNodeViewProps) => {
   const flashCardContent = node.content.toJSON()[0].content[0].text;
 
   const [cardIndex, setCardIndex] = useState<number>(0);
@@ -63,11 +63,17 @@ const FlashCardComponent = ({ node }: ReactNodeViewProps) => {
   if (!flashCardContent) {
     return null;
   }
-
-  const parsedContent: {
+  let parsedContent: {
     title: string;
     cards: Array<{ question: string; answer: string }>;
-  } = JSON.parse(flashCardContent);
+  };
+  try {
+    parsedContent = JSON.parse(flashCardContent);
+  }
+  catch (error) {
+    console.error("Error parsing flash card content", error);
+    return null;
+  }
 
   const handleReset = () => {
     setCardIndex(0);
@@ -75,7 +81,7 @@ const FlashCardComponent = ({ node }: ReactNodeViewProps) => {
 
   return (
     <NodeViewWrapper className="flash-card-node my-4 w-full max-w-full">
-      <div className="space-y-6 flex-1">
+      <div className={cn("space-y-6 flex-1", selected && "bg-accent/30 ring-2 ring-border/50 p-1 rounded-lg")}>
         {parsedContent.title && (
           <p className="text-xs text-muted-foreground px-4">
             {parsedContent.title}
@@ -139,9 +145,12 @@ const FlashCardComponent = ({ node }: ReactNodeViewProps) => {
 };
 
 const FlashCardNode = Node.create({
+  selectable: true,
+  atom: true,
   name: "flashcard",
   group: "block",
   content: "block+",
+  draggable: true,
 
   addAttributes() {
     return {
@@ -169,6 +178,7 @@ const FlashCardNode = Node.create({
     name: "flashcard",
     content: "block",
   }),
+
 });
 
 export { FlashCardNode };

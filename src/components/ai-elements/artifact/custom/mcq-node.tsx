@@ -97,7 +97,7 @@ const MCQQuestion = ({
   );
 };
 
-const MCQComponent = ({ node }: ReactNodeViewProps) => {
+const MCQComponent = ({ node, selected }: ReactNodeViewProps) => {
   const mcqContent = node.content.toJSON()[0].content[0].text;
   const addMcqSet = useMcqStore((state) => state.addMcqSet);
   const mcqs = useMcqStore((state) => state.mcqs);
@@ -108,7 +108,7 @@ const MCQComponent = ({ node }: ReactNodeViewProps) => {
     return null;
   }
 
-  const parsedContent: {
+  let parsedContent: {
     id: string;
     questions: Array<{
       question: string;
@@ -117,7 +117,14 @@ const MCQComponent = ({ node }: ReactNodeViewProps) => {
         isCorrect: boolean;
       }>;
     }>;
-  } = JSON.parse(mcqContent);
+  };
+  try {
+    parsedContent = JSON.parse(mcqContent);
+  }
+  catch (error) {
+    console.error("Error parsing mcq content", error);
+    return null;
+  }
 
   // Use content as unique ID for this MCQ set
   const mcqSetId = parsedContent.id;
@@ -136,7 +143,7 @@ const MCQComponent = ({ node }: ReactNodeViewProps) => {
 
   return (
     <NodeViewWrapper className="mcq-node my-4 w-full max-w-full">
-      <div className="space-y-6 flex-1">
+      <div className={cn("space-y-6 flex-1", selected && "bg-accent/30 ring-2 ring-border/50 p-1 rounded-lg")}>
         <div className="space-y-6">
           <div
             key={questionIndex}
@@ -204,7 +211,8 @@ const MCQNode = Node.create({
   name: "mcq",
   group: "block",
   content: "block+",
-
+  selectable: true,
+  atom: true,
   addAttributes() {
     return {
       content: { default: null },

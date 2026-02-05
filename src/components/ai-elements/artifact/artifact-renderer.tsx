@@ -60,7 +60,9 @@ export const extensions = [
   AIUpdateNode,
   FileAttachmentNode,
   Highlight,
-  Youtube,
+  Youtube.configure({
+    
+  }),
   CodeBlockLowlight.configure({
     lowlight,
   }),

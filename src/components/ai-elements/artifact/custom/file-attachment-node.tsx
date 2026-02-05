@@ -18,7 +18,7 @@ function getFileIcon(mimeType: string) {
   if (
     mimeType === "application/msword" ||
     mimeType ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   ) {
     return FileText;
   }
@@ -27,7 +27,7 @@ function getFileIcon(mimeType: string) {
   if (
     mimeType === "application/vnd.ms-excel" ||
     mimeType ===
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
     mimeType === "text/csv" ||
     mimeType === "application/csv"
   ) {
@@ -38,7 +38,7 @@ function getFileIcon(mimeType: string) {
   if (
     mimeType === "application/vnd.ms-powerpoint" ||
     mimeType ===
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
   ) {
     return Presentation;
   }
@@ -59,7 +59,7 @@ function getFileTypeLabel(mimeType: string): string {
   if (
     mimeType === "application/msword" ||
     mimeType ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   ) {
     return "Word Document";
   }
@@ -67,7 +67,7 @@ function getFileTypeLabel(mimeType: string): string {
   if (
     mimeType === "application/vnd.ms-excel" ||
     mimeType ===
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   ) {
     return "Excel Spreadsheet";
   }
@@ -79,7 +79,7 @@ function getFileTypeLabel(mimeType: string): string {
   if (
     mimeType === "application/vnd.ms-powerpoint" ||
     mimeType ===
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
   ) {
     return "PowerPoint Presentation";
   }
@@ -91,7 +91,7 @@ function getFileTypeLabel(mimeType: string): string {
   return "Document";
 }
 
-const FileAttachmentComponent = ({ node }: ReactNodeViewProps) => {
+const FileAttachmentComponent = ({ node, selected }: ReactNodeViewProps) => {
   const { url, filename, originalMimeType } = node.attrs as {
     url: string;
     filename: string;
@@ -116,7 +116,7 @@ const FileAttachmentComponent = ({ node }: ReactNodeViewProps) => {
           "border border-border bg-muted/30 hover:bg-muted/50",
           "cursor-pointer transition-colors duration-200",
           "max-w-md",
-          isActive && "ring-2 ring-primary/50 bg-primary/5"
+          (isActive || selected) && "ring-2 ring-primary/50 bg-primary/5",
         )}
       >
         <div
@@ -140,6 +140,7 @@ const FileAttachmentNode = Node.create({
   name: "fileAttachment",
   group: "block",
   atom: true,
+  selectable: true,
 
   addAttributes() {
     return {

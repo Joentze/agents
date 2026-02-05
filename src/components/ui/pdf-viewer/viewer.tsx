@@ -17,6 +17,7 @@ import { PDFToolbar } from "./toolbar";
 import { motion } from "motion/react";
 import { X } from "lucide-react";
 import { Button } from "../button";
+import { usePdfPageStore } from "@/hooks/pdf/use-pdf-page";
 
 interface PDFViewerProps {
   fileUrl: string;
@@ -33,10 +34,10 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
   onSwap,
   isRight,
 }) => {
-  const [currentPage, setCurrentPage] = useState(1);
+  const { setPage, getPage, files } = usePdfPageStore();
+  const [currentPage, setCurrentPage] = useState(getPage(fileUrl));
   const [totalPages, setTotalPages] = useState(0);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-
   // Initialize plugins
   const searchPluginInstance = searchPlugin({});
   const zoomPluginInstance = zoomPlugin();
@@ -46,13 +47,21 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
     fileNameGenerator: () => fileName,
   });
 
-  const handleDocumentLoad = useCallback((e: { doc: { numPages: number } }) => {
-    setTotalPages(e.doc.numPages);
-    setCurrentPage(1);
-  }, []);
+  const handleDocumentLoad = useCallback(
+    (e: { doc: { numPages: number } }) => {
+      setTotalPages(e.doc.numPages);
+      // Jump to the stored page after document loads
+      const storedPage = getPage(fileUrl);
+      if (storedPage > 1 && storedPage <= e.doc.numPages) {
+        pageNavigationPluginInstance.jumpToPage(storedPage - 1);
+      }
+    },
+    [fileUrl, getPage, pageNavigationPluginInstance]
+  );
 
   const handlePageChange = useCallback((e: { currentPage: number }) => {
     setCurrentPage(e.currentPage + 1);
+    setPage(fileUrl, e.currentPage + 1);
   }, []);
 
   return (
@@ -98,6 +107,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
               fullScreenPluginInstance,
               getFilePluginInstance,
             ]}
+            initialPage={getPage(fileUrl) - 1}
             onDocumentLoad={handleDocumentLoad}
             onPageChange={handlePageChange}
             defaultScale={SpecialZoomLevel.PageWidth}

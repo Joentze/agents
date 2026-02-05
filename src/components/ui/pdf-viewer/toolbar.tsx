@@ -49,6 +49,7 @@ interface PDFToolbarProps {
   pageNavigationPluginInstance: PageNavigationPlugin;
   fullScreenPluginInstance: FullScreenPlugin;
   getFilePluginInstance: GetFilePlugin;
+  onUserZoom?: () => void;
   onSwap: () => void;
   isRight: boolean;
 }
@@ -67,6 +68,7 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
   pageNavigationPluginInstance,
   fullScreenPluginInstance,
   getFilePluginInstance,
+  onUserZoom,
 }) => {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [matchCount, setMatchCount] = useState(0);
@@ -248,7 +250,10 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={props.onClick}
+                    onClick={() => {
+                      onUserZoom?.();
+                      props.onClick();
+                    }}
                     className="rounded-full"
                   >
                     <ZoomOut className="h-4 w-4" />
@@ -275,7 +280,10 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={props.onClick}
+                    onClick={() => {
+                      onUserZoom?.();
+                      props.onClick();
+                    }}
                     className="rounded-full"
                   >
                     <ZoomIn className="h-4 w-4" />

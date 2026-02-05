@@ -334,7 +334,7 @@ export default function ArtifactPage({
                     />
                   </ResizablePanel>
                 )}
-                {!isRight && fileOpen && (
+                {!isRight && fileOpen && fileUrl && fileName && (
                   <ResizableHandle withHandle className="bg-transparent" />
                 )}
 
@@ -391,7 +391,7 @@ export default function ArtifactPage({
                 </ResizablePanel>
 
                 {/* PDF Viewer on the right when isRight is true */}
-                {isRight && fileOpen && (
+                {isRight && fileOpen && fileUrl && fileName && (
                   <ResizableHandle withHandle className="bg-transparent" />
                 )}
                 {isRight && fileOpen && fileUrl && fileName && (

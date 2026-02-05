@@ -25,6 +25,7 @@ import { Editor } from "@tiptap/react";
 import { useChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
+  generateId,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
 import { useChainOfThoughtStore } from "@/hooks/chain-of-thought/use-chain-of-thought";
@@ -33,12 +34,7 @@ import {
   StepUpdateType,
 } from "@/app/types/chain-of-thought";
 import ChatConversation from "@/components/ai-elements/chat-conversation";
-import { generateId } from "@/components/ai-elements/artifact/custom/ai-update-node";
-import { diffNodes, groupChangeBlocks } from "@/utils/artifact/markdown-diff";
-import {
-  extensions,
-  getEditor,
-} from "@/components/ai-elements/artifact/artifact-renderer";
+
 
 function AgentAttachmentButton({
   isUploading,
@@ -243,72 +239,38 @@ export default function ArtifactAgentChatPanel({
             status: runStatus,
           });
           break;
-        case "data-artifact-agent-chat-end":
-          const { newMarkdown } = data as unknown as { newMarkdown: string };
-          const oldMarkdown = editor?.getMarkdown() || "";
+        case "data-artifact-agent-insert-markdown-block-end":
+          const { markdown, index } = data as unknown as { markdown: string, index: number };
 
-          // Get old nodes from current editor
-          const oldNodes = editor?.getJSON()?.content || [];
-
-          // Create a temporary editor to parse new markdown and get nodes
-          const tempEditor = new Editor({
-            extensions,
-            content: newMarkdown,
-          });
-          tempEditor?.commands.setContent(newMarkdown, {
-            emitUpdate: false,
-            contentType: "markdown",
-          });
-          const newNodes = tempEditor?.getJSON()?.content || [];
-
-          // Use hash-based LCS diff for block-level comparison
-          const diffSegments = diffNodes(oldNodes, newNodes);
-          console.log("diffSegments", diffSegments);
-          const groupedDiffSegments = groupChangeBlocks(diffSegments);
-          console.log("groupedDiffSegments", groupedDiffSegments);
-
-          // Build content nodes from grouped diff segments
+          // parse markdown as node and then insert the node instead
+          const editor = editorRef.current;
           if (editor) {
-            const contentNodes: Array<
-              | {
-                  type: "aiUpdate";
-                  attrs: { id: string; type: string; content: string };
-                }
-              | Record<string, unknown>
-            > = [];
+            // Create an AI update node with the markdown content
+            const aiUpdateNode = {
+              type: "aiUpdate",
+              attrs: {
+                id: runId,
+                type: "added",
+                content: markdown,
+              },
+            };
 
-            for (const segment of groupedDiffSegments) {
-              if (segment.type === "unchanged") {
-                // Parse unchanged markdown and insert as regular nodes
-                const parsed = editor.markdown?.parse(segment.value);
-                if (parsed?.content) {
-                  contentNodes.push(...parsed.content);
-                }
-              } else {
-                // Added or removed - use AIUpdateNode
-                contentNodes.push({
-                  type: "aiUpdate",
-                  attrs: {
-                    id: generateId(),
-                    type: segment.type,
-                    content: segment.value,
-                  },
-                });
-              }
+            // Get current nodes to calculate position
+            const currentNodes = editor.getJSON()?.content || [];
+
+            // Calculate position: sum of all node sizes before the target index
+            let position = 0;
+            for (let i = 0; i < Math.min(index, currentNodes.length); i++) {
+              position += editor.state.doc.content.child(i).nodeSize;
             }
 
-            // Clear editor and set the new content
+            // Insert the AI update node at the calculated position
             editor
               .chain()
               .focus()
-              .clearContent()
-              .insertContent(contentNodes)
+              .insertContentAt(position, aiUpdateNode)
               .run();
           }
-
-          // Clean up temp editor
-          tempEditor?.destroy();
-          break;
         default:
           break;
       }
@@ -317,53 +279,33 @@ export default function ArtifactAgentChatPanel({
       // Handle readArtifact - a dynamic tool that we execute automatically
       if (toolCall.toolName === "readArtifact") {
         const currentNodes = editorRef.current?.getJSON()?.content || [];
+        console.log("currentNodes", currentNodes);
         currentNodes.map((node, index) => {
-          return { ...node, index };
+          return { markdown: editorRef.current?.markdown?.serialize(node).slice(0, 50), index };
         });
         // No await - avoids potential deadlocks
-        console.log("currentNodes", currentNodes);
+
         addToolOutput({
           tool: "readArtifact",
           toolCallId: toolCall.toolCallId,
           output: currentNodes,
         });
-      } else if (toolCall.toolName === "insertArtifact") {
-        const {index, markdown} = toolCall.input as {index: number, markdown: string};
-        // parse markdown as node and then insert the node instead
-        const editor = editorRef.current;
-        if (editor) {
-          // Create an AI update node with the markdown content
-          const aiUpdateNode = {
-            type: "aiUpdate",
-            attrs: {
-              id: generateId(),
-              type: "added",
-              content: markdown,
-            },
-          };
-
-          // Get current nodes to calculate position
-          const currentNodes = editor.getJSON()?.content || [];
-          
-          // Calculate position: sum of all node sizes before the target index
-          let position = 0;
-          for (let i = 0; i < Math.min(index, currentNodes.length); i++) {
-            position += editor.state.doc.content.child(i).nodeSize;
-          }
-
-          // Insert the AI update node at the calculated position
-          editor
-            .chain()
-            .focus()
-            .insertContentAt(position, aiUpdateNode)
-            .run();
-        }
-
+      }
+      else if (toolCall.toolName === "readNodeInArtifact") {
+        const { index } = toolCall.input as { index: number };
+        const node = editorRef.current?.getJSON()?.content?.[index];
+        const markdown = node ? editorRef.current?.markdown?.serialize(node) : undefined;
         addToolOutput({
-          tool: "insertArtifact",
+          tool: "readNodeInArtifact",
           toolCallId: toolCall.toolCallId,
-          output: `Inserted markdown at index ${index}`,
+          output: {
+            markdown,
+            index,
+          },
         });
+      }
+      else if (toolCall.toolName === "insertArtifact") {
+
       }
     },
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
@@ -397,10 +339,7 @@ export default function ArtifactAgentChatPanel({
       // Get fresh contents directly from store to avoid stale closure
       const freshContents = useArtifactAgentSidebar.getState().artifactContents;
       // Get all nodes from the editor as JSON
-      const allNodes = editor?.getJSON()?.content || [];
-      console.log("allNodes", allNodes);
 
-      // what if i take all the nodes in the old markdown, hash based on content, take a new editor instance with the new markdown and hashed the nodes compare them in order
       sendMessage(
         {
           text: content,
@@ -411,8 +350,7 @@ export default function ArtifactAgentChatPanel({
         },
         {
           body: {
-            artifactId,
-            artifactMarkdown: editor?.getMarkdown() || "",
+
           },
         }
       );
@@ -510,7 +448,6 @@ export default function ArtifactAgentChatPanel({
               }
               ref={textareaRef}
               value={text}
-              className="bg-foreground"
               placeholder="Ask about this artifact..."
             />
           </PromptInputBody>
