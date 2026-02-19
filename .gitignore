@@ -44,3 +44,5 @@ next-env.d.ts
 
 # Authentication tokens
 .npmrc
+
+.pnpm-store/
